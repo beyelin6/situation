@@ -5,31 +5,29 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>智慧班級分組系統</title>
     
-    <!-- 載入 Tailwind CSS 樣式庫 -->
+    <!-- 載入 Tailwind CSS -->
     <script src="https://cdn.tailwindcss.com"></script>
     
-    <!-- 載入 React 核心庫 -->
+    <!-- 載入 React -->
     <script crossorigin src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
     <script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
     
-    <!-- 載入 Babel 編譯器 -->
+    <!-- 載入 Babel -->
     <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
 
     <style>
         body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif; }
-        /* 隱藏捲軸但保留滾動功能 */
         .hide-scrollbar::-webkit-scrollbar { display: none; }
         .hide-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
     </style>
 </head>
-<body class="bg-slate-50">
+<body class="bg-slate-50 text-slate-800">
     
     <div id="root"></div>
 
     <script type="text/babel">
-        const { useState, useEffect } = React;
+        const { useState, useEffect, useRef } = React;
 
-        // --- 內建圖示庫 ---
         const iconPaths = {
             Users: '<path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M22 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/>',
             UserPlus: '<path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><line x1="19" y1="8" x2="19" y2="14"/><line x1="22" y1="11" x2="16" y2="11"/>',
@@ -37,31 +35,28 @@
             LayoutGrid: '<rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/>',
             RotateCcw: '<path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"/><path d="M3 3v5h5"/>',
             AlertCircle: '<circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/>',
-            FileText: '<path d="M14.5 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7.5L14.5 2z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/><line x1="10" y1="9" x2="8" y2="9"/>',
-            Upload: '<path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/>',
-            Calculator: '<rect x="4" y="2" width="16" height="20" rx="2"/><line x1="8" y1="6" x2="16" y2="6"/><line x1="16" y1="14" x2="16" y2="18"/><path d="M16 10h.01"/><path d="M12 10h.01"/><path d="M8 10h.01"/><path d="M8 14h.01"/><path d="M8 18h.01"/><path d="M12 14h.01"/><path d="M12 18h.01"/>',
-            CheckCircle2: '<circle cx="12" cy="12" r="10"/><path d="m9 12 2 2 4-4"/>',
-            Shuffle: '<polyline points="16 3 21 3 21 8"/><line x1="4" y1="20" x2="21" y2="3"/><polyline points="21 16 21 21 16 21"/><line x1="15" y1="15" x2="21" y2="21"/><line x1="4" y1="4" x2="9" y2="9"/>',
-            GitMerge: '<circle cx="18" cy="18" r="3"/><circle cx="6" cy="6" r="3"/><path d="M6 21V9a9 9 0 0 0 9 9"/>',
-            ShieldCheck: '<path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/><path d="m9 12 2 2 4-4"/>',
-            Link: '<path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/>',
-            Lock: '<rect x="3" y="11" width="18" height="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/>',
-            Unlock: '<rect x="3" y="11" width="18" height="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 9.9-1"/>',
             Trash2: '<polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/><line x1="10" y1="11" x2="10" y2="17"/><line x1="14" y1="11" x2="14" y2="17"/>',
             Wand2: '<path d="m21.64 3.64-1.28-1.28a1.21 1.21 0 0 0-1.72 0L2.36 18.64a1.21 1.21 0 0 0 0 1.72l1.28 1.28a1.2 1.2 0 0 0 1.72 0L21.64 5.36a1.2 1.2 0 0 0 0-1.72Z"/><path d="m14 7 3 3"/><path d="M5 6v4"/><path d="M19 14v4"/><path d="M10 2v2"/><path d="M7 8H3"/><path d="M21 16h-4"/><path d="M11 3H9"/>',
-            MapPin: '<path d="M20 10c0 6-8 12-8 12s-8-6-8-12a8 8 0 0 1 16 0Z"/><circle cx="12" cy="10" r="3"/>'
+            MapPin: '<path d="M20 10c0 6-8 12-8 12s-8-6-8-12a8 8 0 0 1 16 0Z"/><circle cx="12" cy="10" r="3"/>',
+            Link: '<path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/>',
+            Plus: '<line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/>',
+            Minus: '<line x1="5" y1="12" x2="19" y2="12"/>',
+            Shuffle: '<polyline points="16 3 21 3 21 8"/><line x1="4" y1="20" x2="21" y2="3"/><polyline points="21 16 21 21 16 21"/><line x1="15" y1="15" x2="21" y2="21"/><line x1="4" y1="4" x2="9" y2="9"/>',
+            GitMerge: '<circle cx="18" cy="18" r="3"/><circle cx="6" cy="6" r="3"/><path d="M6 21V9a9 9 0 0 0 9 9"/>',
+            Upload: '<path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/>',
+            FileText: '<path d="M14.5 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7.5L14.5 2z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/><line x1="10" y1="9" x2="8" y2="9"/>',
+            Calculator: '<rect x="4" y="2" width="16" height="20" rx="2"/><line x1="8" y1="6" x2="16" y2="6"/><line x1="16" y1="14" x2="16" y2="18"/><path d="M16 10h.01"/><path d="M12 10h.01"/><path d="M8 10h.01"/><path d="M8 14h.01"/><path d="M8 18h.01"/><path d="M12 14h.01"/><path d="M12 18h.01"/>',
+            CheckCircle2: '<circle cx="12" cy="12" r="10"/><path d="m9 12 2 2 4-4"/>'
         };
 
         const Icon = ({ name, className }) => {
             if (!iconPaths[name]) return null;
-            return (
-                <svg className={className} dangerouslySetInnerHTML={{__html: iconPaths[name]}} xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
-            );
+            return <svg className={className} dangerouslySetInnerHTML={{__html: iconPaths[name]}} xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />;
         };
 
-        const Card = ({ children, className = "" }) => <div className={`bg-white rounded-xl shadow-sm border border-gray-200 ${className}`}>{children}</div>;
-        const CardHeader = ({ children, className = "" }) => <div className={`p-4 border-b border-gray-100 ${className}`}>{children}</div>;
-        const CardTitle = ({ children, className = "" }) => <h3 className={`text-lg font-bold text-gray-800 ${className}`}>{children}</h3>;
+        const Card = ({ children, className = "" }) => <div className={`bg-white rounded-2xl shadow-sm border border-slate-200 ${className}`}>{children}</div>;
+        const CardHeader = ({ children, className = "" }) => <div className={`p-4 border-b border-slate-100 ${className}`}>{children}</div>;
+        const CardTitle = ({ children, className = "" }) => <h3 className={`text-lg font-bold text-slate-800 ${className}`}>{children}</h3>;
         const CardContent = ({ children, className = "" }) => <div className={`p-4 ${className}`}>{children}</div>;
 
         const shuffleArray = (array) => {
@@ -76,103 +71,261 @@
         function SeatingPlanner() {
           const [viewMode, setViewMode] = useState('teacher'); 
           const [activeTab, setActiveTab] = useState('input');
+          
           const [students, setStudents] = useState([]);
-          // constraints structure: { s1, s2, targetGroup, type: 'ban' | 'pair' | 'assign' }
+          const [groupCapacities, setGroupCapacities] = useState([5, 5, 4, 4, 4]); 
           const [constraints, setConstraints] = useState([]); 
-          const [groupCount, setGroupCount] = useState(6);
-          const [smallGroupId, setSmallGroupId] = useState(4); 
+          
           const [algorithm, setAlgorithm] = useState('stratified'); 
           const [groups, setGroups] = useState([]);
           
-          const [newStudent, setNewStudent] = useState({ name: '', score: '', gender: 'M' });
+          const [newStudent, setNewStudent] = useState({ seatNumber: '', name: '', score: '', gender: 'M' });
           const [bulkInput, setBulkInput] = useState('');
           const [constraintInput, setConstraintInput] = useState({ s1: '', s2: '', type: 'ban', targetGroup: 1 });
           
           const [isCalculating, setIsCalculating] = useState(false);
-          const [lastPlaceRuleApplied, setLastPlaceRuleApplied] = useState(false);
+          const [toastMessage, setToastMessage] = useState('');
           const [fakeInputList, setFakeInputList] = useState('');
+          const [importMode, setImportMode] = useState('replace');
+          
+          // 手動微調狀態紀錄：{ groupId, studentId }
+          const [swapSource, setSwapSource] = useState(null); 
+
+          const toastTimerRef = useRef(null);
+          const calculationTimerRef = useRef(null);
+
+          // 💾 自動讀取本機存檔 (Local Storage)
+          useEffect(() => {
+            try {
+              const savedData = localStorage.getItem('ClassSeatingData');
+              if (savedData) {
+                const parsed = JSON.parse(savedData);
+                if (parsed.students && parsed.students.length > 0) setStudents(parsed.students);
+                if (parsed.groupCapacities) setGroupCapacities(parsed.groupCapacities);
+                if (parsed.constraints) setConstraints(parsed.constraints);
+              }
+            } catch (e) { console.error("讀取存檔失敗", e); }
+          }, []);
+
+          // 💾 資料變更時自動存檔
+          useEffect(() => {
+             const dataToSave = { students, groupCapacities, constraints };
+             localStorage.setItem('ClassSeatingData', JSON.stringify(dataToSave));
+          }, [students, groupCapacities, constraints]);
+
+          const showToast = (msg) => {
+             setToastMessage(msg);
+             if (toastTimerRef.current) clearTimeout(toastTimerRef.current);
+             toastTimerRef.current = setTimeout(() => setToastMessage(''), 3000);
+          };
+
+          // 📋 一鍵複製結果名單
+          const copyResultsToClipboard = () => {
+             if (groups.length === 0) return;
+             let text = "📋 本次分組名單：\n\n";
+             groups.forEach(g => {
+                text += `【第 ${g.id} 組】\n`;
+                text += g.members.map(m => `${m.seatNumber}號 ${m.name}`).join('、') + '\n\n';
+             });
+             
+             // 建立臨時 textarea 確保跨瀏覽器複製成功
+             const textArea = document.createElement("textarea");
+             textArea.value = text;
+             document.body.appendChild(textArea);
+             textArea.select();
+             try {
+                document.execCommand('copy');
+                showToast('✅ 名單已複製！可直接貼上至 LINE 或群組');
+             } catch (err) {
+                showToast('❌ 複製失敗，請手動選取複製');
+             }
+             document.body.removeChild(textArea);
+          };
+
+          const loadSampleData = () => {
+            const data = [];
+            const boysNames = ['小明', '大壯', '阿強', '建國', '志豪', '家豪', '冠宇', '子軒', '承恩', '宇翔', '柏翰'];
+            const girlsNames = ['小華', '美美', '莉莉', '雅婷', '心怡', '淑芬', '宜蓁', '詩涵', '雅雯', '怡君', '佳蓉'];
+            let seat = 1;
+            for(let i=0; i<11; i++) {
+               data.push({ id: Date.now()+Math.random(), seatNumber: seat.toString(), name: boysNames[i], score: (i*2)+1, gender: 'M' });
+               seat++;
+               data.push({ id: Date.now()+Math.random(), seatNumber: seat.toString(), name: girlsNames[i], score: (i*2)+2, gender: 'F' });
+               seat++;
+            }
+            setStudents(data);
+            setConstraints([]);
+            setGroups([]);
+            showToast('已載入範例名單');
+          };
+
+          const parseAttendanceNames = (text) => {
+            const tokens = text.replace(/[,，]/g, ' ').split(/\s+/).map(v => v.trim()).filter(Boolean);
+            const result = new Set();
+            for (let i = 0; i < tokens.length; i++) {
+              if (/^\d+$/.test(tokens[i]) && tokens[i + 1]) result.add(tokens[i]);
+              else result.add(tokens[i]);
+            }
+            return result;
+          };
+
+          const getRosterForRun = () => {
+            if (viewMode !== 'student' || !fakeInputList.trim()) return students;
+            const tokens = parseAttendanceNames(fakeInputList);
+            const active = students.filter(s => tokens.has(String(s.seatNumber)) || tokens.has(String(s.name)));
+            if (!active.length) {
+              showToast('找不到相符的座號或姓名，將使用完整名單');
+              return students;
+            }
+            return active;
+          };
 
           const addStudent = () => {
-            if (!newStudent.name || !newStudent.score) return;
-            const id = students.length > 0 ? Math.max(...students.map(s => s.id)) + 1 : 1;
-            setStudents([...students, { ...newStudent, id, score: Number(newStudent.score) }].sort((a,b)=>a.score-b.score));
-            setNewStudent({ name: '', score: '', gender: 'M' });
+            const score = Number(newStudent.score);
+            if (!newStudent.seatNumber.trim() || !newStudent.name.trim() || !newStudent.score || !Number.isInteger(score) || score <= 0) {
+                showToast('請填寫完整：座號、姓名、排名');
+                return;
+            }
+            if (students.some(s => String(s.seatNumber) === String(newStudent.seatNumber).trim())) {
+                showToast('座號已存在，請確認名單');
+                return;
+            }
+            const id = Date.now();
+            setStudents([...students, { ...newStudent, seatNumber: newStudent.seatNumber.trim(), name: newStudent.name.trim(), id, score }].sort((a,b)=>a.score-b.score));
+            setNewStudent({ seatNumber: '', name: '', score: '', gender: 'M' });
+            showToast('已加入學生');
           };
 
           const deleteStudent = (id) => {
             setStudents(students.filter(s => s.id !== id));
-            setConstraints(constraints.filter(c => c.s1 !== id && c.s2 !== id));
+            setConstraints(constraints.filter(c => String(c.s1) !== String(id) && String(c.s2) !== String(id)));
+            setGroups([]);
           };
 
           const handleBulkImport = () => {
-            const lines = bulkInput.trim().split('\n');
+            if (!bulkInput.trim()) return;
+
             const parsedStudents = [];
-            let currentId = students.length > 0 ? Math.max(...students.map(s => s.id)) + 1 : 1;
+            const seenSeats = new Set();
+            let invalidCount = 0;
 
-            lines.forEach(line => {
-              const parts = line.replace(/,/g, ' ').split(/\s+/).filter(p => p);
-              if (parts.length >= 2) {
-                const name = parts[0];
-                const score = Number(parts[1]);
-                let gender = 'M';
-                if (parts.length > 2) {
-                   const gInput = parts[2].toUpperCase();
-                   if (['F', '女', 'GIRL'].includes(gInput)) gender = 'F';
-                }
-                if (!isNaN(score)) {
-                  parsedStudents.push({ id: currentId++, name, score, gender });
-                }
-              }
-            });
+            // 🚀 升級版全域正規表達式解析引擎
+            // 支援「完全無空格連著打」(如: 01王小明1男02陳小花2女) 或「Excel表格多行複製」
+            // 邏輯: (\d+)座號 -> ([^\d]+?)姓名 -> (\d+)排名 -> ([男女MFmfGIRLboy]*)性別 -> (?=\s*\d|$)確認後面接數字或結尾
+            const regex = /(\d+)\s*([^\d]+?)\s*(\d+)\s*([男女MFmfGIRLboy]*)(?=\s*\d|$)/gi;
+            
+            // 將全形逗號、頓號等干擾字元轉為空白，方便後續處理
+            const normalizedInput = bulkInput.replace(/[,，。、]/g, ' ');
+            const matches = [...normalizedInput.matchAll(regex)];
 
+            if (matches.length > 0) {
+              matches.forEach(match => {
+                const seatNumber = match[1].trim();
+                const name = match[2].trim();
+                const score = Number(match[3]);
+                let gender = 'M'; // 預設為男生
+                
+                const gInput = match[4] ? match[4].toUpperCase().trim() : '';
+                if (['F', '女', 'GIRL'].includes(gInput)) gender = 'F';
+
+                // 驗證成績與防呆
+                if (!isNaN(score) && Number.isInteger(score) && score > 0 && !seenSeats.has(seatNumber)) {
+                  parsedStudents.push({ id: Date.now() + Math.random(), seatNumber, name, score, gender });
+                  seenSeats.add(seatNumber);
+                } else {
+                  invalidCount++;
+                }
+              });
+            }
+
+            // --- 資料寫入狀態 ---
             if (parsedStudents.length > 0) {
-              setStudents([...students, ...parsedStudents].sort((a,b)=>a.score-b.score));
+              const base = importMode === 'replace' ? [] : students;
+              const existingSeats = new Set(base.map(s => String(s.seatNumber)));
+              const duplicates = parsedStudents.filter(s => existingSeats.has(String(s.seatNumber)));
+              
+              if (duplicates.length && importMode === 'append') {
+                showToast(`有 ${duplicates.length} 筆座號重複，未匯入重複資料`);
+              }
+              
+              const finalStudents = [...base, ...parsedStudents.filter(s => !existingSeats.has(String(s.seatNumber)))].sort((a,b)=>a.score-b.score);
+              setStudents(finalStudents);
+              setGroups([]); // 清空先前的分組結果
+              if (importMode === 'replace') setConstraints([]); // 取代模式清空規則
               setBulkInput('');
-              alert(`成功匯入 ${parsedStudents.length} 位學生`);
+              
+              if (!duplicates.length) {
+                 showToast(`${importMode === 'replace' ? '已取代' : '已追加'} ${parsedStudents.length} 位學生`);
+              }
+              if (invalidCount > 0) {
+                 setTimeout(() => showToast(`部分格式有誤，已略過`), 3000);
+              }
             } else {
-              alert('格式錯誤。請使用：姓名 排名 性別');
+              showToast('格式錯誤。請確認包含：座號 姓名 排名 性別');
             }
           };
 
+          const updateCapacity = (index, delta) => {
+             const newCap = [...groupCapacities];
+             if (newCap[index] + delta > 0) {
+                newCap[index] += delta;
+                setGroupCapacities(newCap);
+             }
+          };
+
+          const addGroup = () => setGroupCapacities([...groupCapacities, 4]);
+          
+          const removeGroup = (index) => {
+             if (groupCapacities.length <= 2) {
+                 showToast('至少保留兩組！');
+                 return;
+             }
+             const newCap = [...groupCapacities];
+             newCap.splice(index, 1);
+             setGroupCapacities(newCap);
+          };
+
+          const autoBalanceCapacities = () => {
+             if (students.length === 0) return;
+             const total = students.length;
+             const groups = groupCapacities.length;
+             const base = Math.floor(total / groups);
+             let remainder = total % groups;
+             
+             const newCap = Array(groups).fill(base);
+             for(let i=0; i<remainder; i++) newCap[i]++;
+             setGroupCapacities(newCap);
+             showToast('已自動平均分配座位！');
+          };
+
           const addConstraint = () => {
-            const s1 = Number(constraintInput.s1);
-            
-            // 處理「指定組別」規則
+            const s1 = constraintInput.s1;
             if (constraintInput.type === 'assign') {
                const tg = Number(constraintInput.targetGroup);
                if (!s1 || !tg) return;
-               
-               // 移除該學生舊的指定規則，避免重複衝突
                const filteredC = constraints.filter(c => !(c.type === 'assign' && c.s1 === s1));
                setConstraints([...filteredC, { s1, targetGroup: tg, type: 'assign' }]);
                setConstraintInput({ ...constraintInput, s1: '' });
+               showToast('已鎖定座位');
                return;
             }
 
-            // 處理「排斥/綁定」規則
-            const s2 = Number(constraintInput.s2);
+            const s2 = constraintInput.s2;
             if (!s1 || !s2 || s1 === s2) return;
-            
             const exists = constraints.some(c => c.type !== 'assign' && ((c.s1 === s1 && c.s2 === s2) || (c.s1 === s2 && c.s2 === s1)));
             if (exists) {
-              alert("這兩位學生已經有互動規則了！");
+              showToast("這兩位學生已經有互動規則了！");
               return;
             }
-            
             setConstraints([...constraints, { s1, s2, type: constraintInput.type }]);
             setConstraintInput({ ...constraintInput, s1: '', s2: '' });
+            showToast('規則已加入');
           };
 
           const removeConstraint = (index) => {
             const newC = [...constraints];
             newC.splice(index, 1);
             setConstraints(newC);
-          };
-
-          const setOptimalGroupCount = () => {
-            if (students.length === 0) return;
-            const optimal = Math.ceil(students.length / 4);
-            setGroupCount(optimal);
           };
 
           const handleSecretToggle = () => {
@@ -184,161 +337,210 @@
              }
           };
 
-          const clearGroupsAndFakeInput = () => {
-            setGroups([]);
-            setFakeInputList('');
-            setLastPlaceRuleApplied(false);
-          };
-          
           const clearGroups = () => {
             setGroups([]);
-            setLastPlaceRuleApplied(false);
+            setFakeInputList('');
+            setSwapSource(null);
           };
 
-          // --- 核心演算法 ---
+          const getStudentName = (id) => students.find(s => String(s.id) === String(id))?.name || '未知';
+
+          // 📊 獨立抽出的數據重算引擎 (給產生器與手動交換時共用)
+          const applyGroupStats = (targetGroups, activeConstraints) => {
+              const newGroups = [...targetGroups];
+              newGroups.forEach(g => {
+                g.members.sort((a, b) => a.score - b.score);
+                const scoreSum = g.members.reduce((acc, m) => acc + m.score, 0);
+                const issues = [];
+                activeConstraints.forEach(c => {
+                  const g1 = newGroups.findIndex(grp => grp.members.some(m => String(m.id) === String(c.s1)));
+                  const g2 = c.type === 'assign' ? c.targetGroup - 1 : newGroups.findIndex(grp => grp.members.some(m => String(m.id) === String(c.s2)));
+                  if (g1 < 0 || g2 < 0) return;
+                  if (c.type === 'ban' && g1 === g2) issues.push(`不要同組：${getStudentName(c.s1)}、${getStudentName(c.s2)}`);
+                  if (c.type === 'pair' && g1 !== g2) issues.push(`一定要同組：${getStudentName(c.s1)}、${getStudentName(c.s2)}`);
+                  if (c.type === 'assign' && g1 !== g2) issues.push(`指定組別：${getStudentName(c.s1)} → 第 ${c.targetGroup} 組`);
+                });
+                g.stats = {
+                  avg: g.members.length ? (scoreSum / g.members.length).toFixed(1) : 0,
+                  mCount: g.members.filter(m => m.gender === 'M').length,
+                  fCount: g.members.filter(m => m.gender === 'F').length,
+                  hasConflict: issues.some(issue => issue.includes(`第 ${g.id} 組`) || g.members.some(m => issue.includes(m.name))),
+                  issues
+                };
+              });
+              return newGroups;
+          };
+
+          // ✋ 手動微調座位功能
+          const handleSeatClick = (groupId, studentId) => {
+             if (!swapSource) {
+                 if (studentId) {
+                     setSwapSource({ groupId, studentId });
+                     showToast('📍 請點擊另一位學生或空位來進行交換');
+                 } else {
+                     showToast('請先選擇要移動的學生！');
+                 }
+             } else {
+                 // 點擊同一個人 -> 取消選擇
+                 if (swapSource.groupId === groupId && swapSource.studentId === studentId) {
+                     setSwapSource(null); 
+                     return;
+                 }
+
+                 // 執行交換邏輯
+                 let newGroups = groups.map(g => ({ ...g, members: [...g.members] }));
+                 const srcGroup = newGroups.find(g => g.id === swapSource.groupId);
+                 const destGroup = newGroups.find(g => g.id === groupId);
+                 
+                 const srcStudentIdx = srcGroup.members.findIndex(m => m.id === swapSource.studentId);
+                 const srcStudent = srcGroup.members[srcStudentIdx];
+
+                 if (studentId) {
+                     // 兩人互換
+                     const destStudentIdx = destGroup.members.findIndex(m => m.id === studentId);
+                     const destStudent = destGroup.members[destStudentIdx];
+                     srcGroup.members.splice(srcStudentIdx, 1, destStudent);
+                     destGroup.members.splice(destStudentIdx, 1, srcStudent);
+                 } else {
+                     // 移入空位
+                     if (destGroup.members.length >= destGroup.capacity) {
+                         showToast('目標組別已滿，無法移入！');
+                         setSwapSource(null);
+                         return;
+                     }
+                     srcGroup.members.splice(srcStudentIdx, 1);
+                     destGroup.members.push(srcStudent);
+                 }
+
+                 // 計算有效規則 (扣除缺席者)
+                 const roster = getRosterForRun();
+                 const activeIds = new Set(roster.map(s => String(s.id)));
+                 const activeConstraints = constraints.filter(c => {
+                    if (c.type === 'assign') return activeIds.has(String(c.s1));
+                    return activeIds.has(String(c.s1)) && activeIds.has(String(c.s2));
+                 });
+
+                 setGroups(applyGroupStats(newGroups, activeConstraints));
+                 setSwapSource(null);
+                 showToast('🔄 座位已手動更新！');
+             }
+          };
+
           const generateGroups = () => {
-            if (students.length === 0) {
-              alert(viewMode === 'teacher' ? "請先在輸入資料區填寫學生資料！" : "系統錯誤：請聯繫老師。");
+            const roster = getRosterForRun();
+            const totalSeats = groupCapacities.reduce((a,b)=>a+b, 0);
+            if (roster.length === 0) {
+              showToast("請先輸入學生資料！");
               return;
             }
-            
+            if (totalSeats < roster.length) {
+              showToast(`座位不夠！學生有 ${roster.length} 人，但座位只有 ${totalSeats} 個。`);
+              return;
+            }
+
+            // 🛡️ 缺席防呆：過濾掉有牽涉到缺席者的規則
+            const activeIds = new Set(roster.map(s => String(s.id)));
+            const activeConstraints = constraints.filter(c => {
+               if (c.type === 'assign') return activeIds.has(String(c.s1));
+               return activeIds.has(String(c.s1)) && activeIds.has(String(c.s2));
+            });
+
+            const assignmentCounts = {};
+            activeConstraints.filter(c => c.type === 'assign').forEach(c => {
+              assignmentCounts[c.targetGroup] = (assignmentCounts[c.targetGroup] || 0) + 1;
+            });
+            const overfull = Object.entries(assignmentCounts).find(([groupNo, count]) => count > (groupCapacities[Number(groupNo) - 1] || 0));
+            if (overfull) {
+              showToast(`第 ${overfull[0]} 組的指定人數超過座位上限`);
+              return;
+            }
+
             setIsCalculating(true);
-            setLastPlaceRuleApplied(false);
+            setSwapSource(null);
             
-            setTimeout(() => {
-              // 1. 初始化空組別
-              let tempGroups = Array.from({ length: groupCount }, (_, i) => ({
+            calculationTimerRef.current = setTimeout(() => {
+              let tempGroups = groupCapacities.map((cap, i) => ({
                 id: i + 1,
+                capacity: cap,
                 members: [],
-                stats: { scoreSum: 0, mCount: 0, fCount: 0 }
+                stats: { avg: 0, mCount: 0, fCount: 0, hasConflict: false }
               }));
 
-              // 2. 預先安插「指定組別」的學生
               const assignedIds = new Set();
-              constraints.forEach(c => {
+              activeConstraints.forEach(c => {
                  if (c.type === 'assign') {
-                    const student = students.find(s => s.id === c.s1);
-                    if (student && c.targetGroup >= 1 && c.targetGroup <= groupCount) {
+                    const student = roster.find(s => String(s.id) === String(c.s1));
+                    if (student && c.targetGroup >= 1 && c.targetGroup <= tempGroups.length) {
                        tempGroups[c.targetGroup - 1].members.push(student);
                        assignedIds.add(student.id);
                     }
                  }
               });
 
-              // 3. 計算目標容量 (Target Capacities)
-              const targetCapacities = {};
-              const baseCap = Math.floor(students.length / groupCount);
-              let remainder = students.length % groupCount;
-              
-              for(let i=1; i<=groupCount; i++) targetCapacities[i] = baseCap;
-              
-              let groupIds = Array.from({length: groupCount}, (_, i) => i + 1);
-              if (smallGroupId > 0 && smallGroupId <= groupCount) {
-                 groupIds = groupIds.filter(id => id !== smallGroupId);
-                 groupIds.push(smallGroupId); 
-              }
-              
-              for(let id of groupIds) {
-                 if (remainder > 0) {
-                    targetCapacities[id]++;
-                    remainder--;
+              let boys = roster.filter(s => s.gender === 'M' && !assignedIds.has(s.id)).sort((a, b) => a.score - b.score);
+              let girls = roster.filter(s => s.gender === 'F' && !assignedIds.has(s.id)).sort((a, b) => a.score - b.score);
+
+              const distribute = (list, genderStr) => {
+                 list.forEach(student => {
+                    tempGroups.sort((a, b) => {
+                       const isFullA = a.members.length >= a.capacity;
+                       const isFullB = b.members.length >= b.capacity;
+                       if (isFullA && !isFullB) return 1;
+                       if (!isFullA && isFullB) return -1;
+
+                       const limitA = Math.ceil(a.capacity / 2);
+                       const limitB = Math.ceil(b.capacity / 2);
+                       const genderCountA = a.members.filter(m => m.gender === genderStr).length;
+                       const genderCountB = b.members.filter(m => m.gender === genderStr).length;
+                       
+                       const overLimitA = genderCountA >= limitA;
+                       const overLimitB = genderCountB >= limitB;
+                       
+                       if (overLimitA && !overLimitB) return 1;
+                       if (!overLimitA && overLimitB) return -1;
+
+                       const vacancyA = a.capacity - a.members.length;
+                       const vacancyB = b.capacity - b.members.length;
+                       if (vacancyA !== vacancyB) return vacancyB - vacancyA; 
+
+                       const sumA = a.members.reduce((acc, m) => acc + m.score, 0);
+                       const sumB = b.members.reduce((acc, m) => acc + m.score, 0);
+                       return sumB - sumA;
+                    });
+                    
+                    if (tempGroups[0].members.length < tempGroups[0].capacity) {
+                        tempGroups[0].members.push(student);
+                    }
+                 });
+              };
+
+              if (algorithm === 'snake') {
+                 distribute(boys, 'M');
+                 distribute(girls, 'F');
+              } else {
+                 const maxLen = Math.max(boys.length, girls.length);
+                 let interleaved = [];
+                 for(let i=0; i<maxLen; i++){
+                    if (i < boys.length) interleaved.push(boys[i]);
+                    if (i < girls.length) interleaved.push(girls[i]);
+                 }
+                 
+                 const sliceSize = tempGroups.length; 
+                 for (let i=0; i<interleaved.length; i+=sliceSize) {
+                    let chunk = interleaved.slice(i, i+sliceSize);
+                    chunk = shuffleArray(chunk);
+                    chunk.forEach(student => distribute([student], student.gender));
                  }
               }
 
-              // 4. 準備尚未被指定的學生
-              let boys = students.filter(s => s.gender === 'M' && !assignedIds.has(s.id)).sort((a, b) => a.score - b.score);
-              let girls = students.filter(s => s.gender === 'F' && !assignedIds.has(s.id)).sort((a, b) => a.score - b.score);
+              tempGroups.sort((a, b) => a.id - b.id);
 
-              // 5. 執行分配演算法
-              if (algorithm === 'snake') {
-                boys.forEach((student) => {
-                  tempGroups.sort((a, b) => {
-                     const deficitA = a.members.length - targetCapacities[a.id];
-                     const deficitB = b.members.length - targetCapacities[b.id];
-                     if (deficitA !== deficitB) return deficitA - deficitB;
-                     // 稍微隨機或按順序
-                     return a.id - b.id;
-                  });
-                  tempGroups[0].members.push(student);
-                });
-                girls.forEach(girl => {
-                  tempGroups.sort((a, b) => {
-                     const deficitA = a.members.length - targetCapacities[a.id];
-                     const deficitB = b.members.length - targetCapacities[b.id];
-                     if (deficitA !== deficitB) return deficitA - deficitB; 
-                     const sumA = a.members.reduce((acc, m) => acc + m.score, 0);
-                     const sumB = b.members.reduce((acc, m) => acc + m.score, 0);
-                     return sumB - sumA; 
-                  });
-                  tempGroups[0].members.push(girl);
-                });
-                tempGroups.sort((a, b) => a.id - b.id);
-              } else {
-                const distributeStratified = (list) => {
-                  const layerCount = Math.ceil(list.length / groupCount);
-                  for (let i = 0; i < layerCount; i++) {
-                    const start = i * groupCount;
-                    const end = Math.min(start + groupCount, list.length);
-                    let stratum = list.slice(start, end);
-                    stratum = shuffleArray(stratum);
-                    stratum.forEach((student) => {
-                       tempGroups.sort((a, b) => {
-                         const deficitA = a.members.length - targetCapacities[a.id];
-                         const deficitB = b.members.length - targetCapacities[b.id];
-                         return deficitA - deficitB;
-                       });
-                       tempGroups[0].members.push(student);
-                    });
-                  }
-                };
-                distributeStratified(boys);
-                distributeStratified(girls);
-                tempGroups.sort((a, b) => a.id - b.id);
-              }
-
-              // --- 守門員機制 (保護最後一名男生) ---
-              let ruleApplied = false;
-              const allBoys = tempGroups.flatMap(g => g.members).filter(m => m.gender === 'M');
-              if (allBoys.length > 0) {
-                const lastPlaceBoy = allBoys.reduce((prev, curr) => (prev.score > curr.score) ? prev : curr);
-                // 檢查他是否已被老師鎖定在某組
-                const isAssigned = constraints.some(c => c.type === 'assign' && c.s1 === lastPlaceBoy.id);
-                
-                if (!isAssigned) {
-                   const currentGroup = tempGroups.find(g => g.members.some(m => m.id === lastPlaceBoy.id));
-                   if (currentGroup) {
-                      const boyCount = currentGroup.members.filter(m => m.gender === 'M').length;
-                      if (boyCount > 2) {
-                        const targetGroup = tempGroups.find(g => 
-                          g.id !== currentGroup.id && 
-                          g.members.filter(m => m.gender === 'M').length <= 2 &&
-                          // 確保目標組的男生沒有被老師鎖定
-                          g.members.some(m => m.gender === 'M' && !constraints.some(c => c.type === 'assign' && c.s1 === m.id)) 
-                        );
-                        if (targetGroup) {
-                          const targetBoy = targetGroup.members.find(m => m.gender === 'M' && !constraints.some(c => c.type === 'assign' && c.s1 === m.id));
-                          if (targetBoy) {
-                              currentGroup.members = currentGroup.members.filter(m => m.id !== lastPlaceBoy.id);
-                              targetGroup.members = targetGroup.members.filter(m => m.id !== targetBoy.id);
-                              currentGroup.members.push(targetBoy);
-                              targetGroup.members.push(lastPlaceBoy);
-                              ruleApplied = true;
-                          }
-                        }
-                      }
-                   }
-                }
-              }
-              setLastPlaceRuleApplied(ruleApplied);
-
-              // 輔助函式：檢查某人是否可以被交換走
               const canMove = (studentId, proposedGroupIdx) => {
-                 const assignRule = constraints.find(c => c.type === 'assign' && c.s1 === studentId);
+                 const assignRule = activeConstraints.find(c => c.type === 'assign' && String(c.s1) === String(studentId));
                  if (assignRule) return (assignRule.targetGroup - 1) === proposedGroupIdx;
-                 return true; // 沒被綁定，可以自由移動
+                 return true;
               };
 
-              // 6. 衝突處理 (Ban & Pair)
               let iteration = 0;
               let hasIssue = true;
               while (hasIssue && iteration < 300) {
@@ -348,29 +550,29 @@
                 const memberMap = {};
                 tempGroups.forEach((g, gIdx) => g.members.forEach(m => memberMap[m.id] = gIdx));
 
-                for (const constraint of constraints) {
-                  if (constraint.type === 'assign') continue; // Assign已在前面處理完畢
+                for (const constraint of activeConstraints) {
+                  if (constraint.type === 'assign') continue;
 
                   const g1 = memberMap[constraint.s1];
                   const g2 = memberMap[constraint.s2];
                   if (g1 === undefined || g2 === undefined) continue;
 
-                  // 處理 BAN (不能同組卻在一起)
                   if (constraint.type === 'ban' && g1 === g2) {
                     hasIssue = true;
                     const groupIndex = g1;
-                    const studentA = tempGroups[groupIndex].members.find(m => m.id === constraint.s1);
+                    const studentA = tempGroups[groupIndex].members.find(m => String(m.id) === String(constraint.s1));
                     let swapped = false;
-                    const targetIndices = shuffleArray(Array.from({length: groupCount}, (_, i) => i).filter(i => i !== groupIndex));
+                    const targetIndices = shuffleArray(Array.from({length: tempGroups.length}, (_, i) => i).filter(i => i !== groupIndex));
 
                     for (const targetGIdx of targetIndices) {
-                      const candidates = tempGroups[targetGIdx].members.filter(m => m.gender === studentA.gender);
+                      const targetGroup = tempGroups[targetGIdx];
+                      const candidates = targetGroup.members.filter(m => m.gender === studentA.gender);
+                      
                       for (const candidate of candidates) {
-                         // 檢查雙方是否都被允許移動
                          if (canMove(studentA.id, targetGIdx) && canMove(candidate.id, groupIndex)) {
                             tempGroups[groupIndex].members = tempGroups[groupIndex].members.filter(m => m.id !== studentA.id);
-                            tempGroups[targetGIdx].members = tempGroups[targetGIdx].members.filter(m => m.id !== candidate.id);
-                            tempGroups[targetGIdx].members.push(studentA);
+                            targetGroup.members = targetGroup.members.filter(m => m.id !== candidate.id);
+                            targetGroup.members.push(studentA);
                             tempGroups[groupIndex].members.push(candidate);
                             swapped = true;
                             break;
@@ -380,251 +582,267 @@
                     }
                   }
 
-                  // 處理 PAIR (要同組卻不在一起)
                   if (constraint.type === 'pair' && g1 !== g2) {
                     hasIssue = true;
-                    const groupIndex1 = g1;
-                    const groupIndex2 = g2;
-                    const student1 = tempGroups[groupIndex1].members.find(m => m.id === constraint.s1);
-                    const student2 = tempGroups[groupIndex2].members.find(m => m.id === constraint.s2);
+                    const student1 = tempGroups[g1].members.find(m => String(m.id) === String(constraint.s1));
+                    const student2 = tempGroups[g2].members.find(m => String(m.id) === String(constraint.s2));
                     
-                    // 嘗試把 S2 搬到 G1 (需要 G1 某人換去 G2)
-                    const swapCandidate1 = tempGroups[groupIndex1].members.find(m => 
-                      m.id !== student1.id && m.gender === student2.gender && canMove(m.id, groupIndex2)
+                    const swapCandidate1 = tempGroups[g1].members.find(m => 
+                      m.id !== student1.id && m.gender === student2.gender && canMove(m.id, g2)
                     );
                     
-                    if (swapCandidate1 && canMove(student2.id, groupIndex1)) {
-                       tempGroups[groupIndex1].members = tempGroups[groupIndex1].members.filter(m => m.id !== swapCandidate1.id);
-                       tempGroups[groupIndex2].members = tempGroups[groupIndex2].members.filter(m => m.id !== student2.id);
-                       tempGroups[groupIndex1].members.push(student2);
-                       tempGroups[groupIndex2].members.push(swapCandidate1);
-                       break; 
-                    }
-                    
-                    // 失敗的話，嘗試反過來：把 S1 搬到 G2
-                    const swapCandidate2 = tempGroups[groupIndex2].members.find(m => 
-                      m.id !== student2.id && m.gender === student1.gender && canMove(m.id, groupIndex1)
-                    );
-
-                    if (swapCandidate2 && canMove(student1.id, groupIndex2)) {
-                       tempGroups[groupIndex2].members = tempGroups[groupIndex2].members.filter(m => m.id !== swapCandidate2.id);
-                       tempGroups[groupIndex1].members = tempGroups[groupIndex1].members.filter(m => m.id !== student1.id);
-                       tempGroups[groupIndex2].members.push(student1);
-                       tempGroups[groupIndex1].members.push(swapCandidate2);
+                    if (swapCandidate1 && canMove(student2.id, g1)) {
+                       tempGroups[g1].members = tempGroups[g1].members.filter(m => m.id !== swapCandidate1.id);
+                       tempGroups[g2].members = tempGroups[g2].members.filter(m => m.id !== student2.id);
+                       tempGroups[g1].members.push(student2);
+                       tempGroups[g2].members.push(swapCandidate1);
                        break; 
                     }
                   }
                 }
               }
 
-              tempGroups.forEach(g => {
-                g.members.sort((a, b) => a.score - b.score);
-                const scoreSum = g.members.reduce((acc, m) => acc + m.score, 0);
-                g.stats = {
-                  avg: g.members.length ? (scoreSum / g.members.length).toFixed(1) : 0,
-                  mCount: g.members.filter(m => m.gender === 'M').length,
-                  fCount: g.members.filter(m => m.gender === 'F').length,
-                  hasConflict: false
-                };
-                g.members.forEach(m => {
-                   constraints.forEach(c => {
-                     if (c.type === 'ban') {
-                        const enemyId = c.s1 === m.id ? c.s2 : (c.s2 === m.id ? c.s1 : null);
-                        if (enemyId && g.members.find(o => o.id === enemyId)) g.stats.hasConflict = true;
-                     }
-                   });
-                });
-              });
-
-              setGroups(tempGroups);
+              // 套用狀態運算並更新
+              setGroups(applyGroupStats(tempGroups, activeConstraints));
               setIsCalculating(false);
               if (viewMode === 'teacher') setActiveTab('result');
-            }, 1000); 
+            }, 800); 
           };
 
-          const getStudentName = (id) => students.find(s => s.id === id)?.name || '未知';
-
-          // --- 渲染畫面 ---
           const renderHeader = () => (
-            <div className="mb-8 flex flex-col md:flex-row md:items-center justify-between gap-6 transition-all">
+            <div className="mb-8 flex flex-col md:flex-row md:items-center justify-between gap-6">
               <div className="flex items-center gap-3">
                 <div 
                   onDoubleClick={handleSecretToggle}
-                  title={viewMode === 'teacher' ? "雙擊切換至展示模式" : ""}
-                  className={`p-3 rounded-xl text-white transition-all cursor-pointer select-none transform hover:scale-105 ${viewMode === 'teacher' ? 'bg-indigo-600 shadow-md' : 'bg-gradient-to-br from-rose-400 to-orange-500 shadow-lg'}`}
+                  className={`p-3 rounded-2xl text-white transition-all cursor-pointer select-none shadow-md hover:scale-105 ${viewMode === 'teacher' ? 'bg-indigo-600' : 'bg-gradient-to-br from-rose-400 to-orange-500'}`}
                 >
                   <Icon name="Wand2" className="w-8 h-8" />
                 </div>
                 <div>
                   <h1 className="text-3xl font-extrabold text-slate-800 tracking-tight">
-                    {viewMode === 'teacher' ? '智慧分組後台 (設定)' : '隨機分組小幫手'}
+                    {viewMode === 'teacher' ? '智慧分組後台' : '隨機分組小幫手'}
                   </h1>
-                  {viewMode === 'teacher' && (
-                    <p className="text-slate-500 mt-1 font-medium text-sm">
-                      🔒 提示：在左側魔杖圖示上「雙擊」即可無痕切換至展示模式
-                    </p>
-                  )}
+                  {viewMode === 'teacher' && <p className="text-slate-500 mt-1 text-sm font-medium">雙擊左側魔杖圖示可無痕切換展示模式</p>}
                 </div>
               </div>
               
               {viewMode === 'teacher' && (
-                <div className="flex items-center gap-4">
-                  <div className="flex bg-white p-1.5 rounded-xl shadow-sm border border-slate-200">
-                    {[
-                      { id: 'input', label: '1. 名單' },
-                      { id: 'constraints', label: '2. 條件' },
-                      { id: 'result', label: '3. 結果' }
-                    ].map(tab => (
-                      <button 
-                        key={tab.id}
-                        onClick={() => setActiveTab(tab.id)}
-                        className={`px-4 py-2 rounded-lg text-sm font-bold transition-all ${
-                          activeTab === tab.id 
-                            ? 'bg-indigo-600 text-white shadow-md' 
-                            : 'text-slate-500 hover:bg-slate-50'
-                        }`}
-                      >
-                        {tab.label}
-                      </button>
-                    ))}
-                  </div>
+                <div className="flex bg-white p-1.5 rounded-xl shadow-sm border border-slate-200">
+                  {[
+                    { id: 'input', label: '1. 名單' },
+                    { id: 'constraints', label: '2. 座位與條件' },
+                    { id: 'result', label: '3. 結果' }
+                  ].map(tab => (
+                    <button 
+                      key={tab.id}
+                      onClick={() => setActiveTab(tab.id)}
+                      className={`px-4 py-2 rounded-lg text-sm font-bold transition-all ${activeTab === tab.id ? 'bg-indigo-600 text-white shadow' : 'text-slate-500 hover:bg-slate-50'}`}
+                    >
+                      {tab.label}
+                    </button>
+                  ))}
                 </div>
               )}
             </div>
           );
 
+          // 共用的互動式排版渲染
+          const renderInteractiveGrid = (isStudentMode) => (
+             <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6">
+                {groups.map((group) => (
+                  <div key={group.id} className={`bg-white rounded-2xl shadow-sm border-2 overflow-hidden transition-all ${isStudentMode ? 'border-amber-100' : (group.stats.hasConflict ? 'border-red-300 ring-2 ring-red-100' : 'border-slate-200')}`}>
+                     
+                     <div className={`p-4 flex justify-between items-center border-b ${isStudentMode ? 'bg-gradient-to-r from-amber-100 to-orange-50 border-amber-100':'bg-slate-50 border-slate-200'}`}>
+                        <span className={`text-lg font-black ${isStudentMode ? 'text-amber-900' : 'text-slate-800'}`}>第 {group.id} 組</span>
+                        
+                        {!isStudentMode ? (
+                           <div className="flex gap-2 text-xs font-bold">
+                              <span className="text-blue-600 bg-blue-50 px-2 py-0.5 rounded border border-blue-200">男: {group.stats.mCount}</span>
+                              <span className="text-pink-600 bg-pink-50 px-2 py-0.5 rounded border border-pink-200">女: {group.stats.fCount}</span>
+                           </div>
+                        ) : (
+                           <div className="flex gap-1">
+                              {Array.from({length: group.capacity}).map((_, i) => (
+                                <div key={i} className={`w-2.5 h-2.5 rounded-full ${i < group.members.length ? 'bg-amber-400' : 'bg-amber-200/50'}`}></div>
+                              ))}
+                           </div>
+                        )}
+                     </div>
+
+                     <div className="p-5">
+                        <div className="grid grid-cols-2 gap-3">
+                          {/* 渲染可點擊的學生卡片 */}
+                          {group.members.map(m => {
+                             const isSelected = swapSource?.studentId === m.id;
+                             return (
+                             <div 
+                                key={m.id} 
+                                onClick={() => handleSeatClick(group.id, m.id)}
+                                className={`relative flex flex-col items-center justify-center p-3 rounded-xl border shadow-sm transition-all cursor-pointer hover:shadow-md 
+                                ${m.gender === 'M' ? 'bg-blue-50 border-blue-200 text-blue-900' : 'bg-pink-50 border-pink-200 text-pink-900'}
+                                ${isSelected ? 'ring-4 ring-indigo-400 transform scale-105 z-10' : ''}`}
+                             >
+                                {!isStudentMode && constraints.some(c => c.type === 'assign' && String(c.s1) === String(m.id)) && (
+                                   <Icon name="MapPin" className="absolute top-1 left-1 w-3 h-3 text-purple-500 opacity-50"/>
+                                )}
+                                <span className={`text-xs font-mono font-bold mb-0.5 opacity-70`}>{m.seatNumber}</span>
+                                <span className="font-bold text-lg text-center truncate w-full">{m.name}</span>
+                             </div>
+                          )})}
+                          
+                          {/* 渲染可點擊的空位 */}
+                          {Array.from({length: Math.max(0, group.capacity - group.members.length)}).map((_,i)=>(
+                             <div 
+                                key={i} 
+                                onClick={() => handleSeatClick(group.id, null)}
+                                className={`flex items-center justify-center p-3 rounded-xl border-2 border-dashed transition-all cursor-pointer 
+                                ${swapSource ? 'border-indigo-300 bg-indigo-50 hover:bg-indigo-100' : 'border-slate-200 bg-slate-50/50'}`}
+                             >
+                                <span className={`text-xs font-bold ${swapSource ? 'text-indigo-500' : 'text-slate-300'}`}>
+                                   {swapSource ? '📍 移入此位' : '空位'}
+                                </span>
+                             </div>
+                          ))}
+                        </div>
+                     </div>
+                     
+                     {!isStudentMode && (
+                        <div className="px-4 py-2 border-t border-slate-100 bg-white flex justify-between items-center text-xs text-slate-500">
+                           <span>平均排名: {group.stats.avg}</span>
+                           {group.stats.hasConflict && <span className="text-red-600 font-bold">⚠️ 人員衝突</span>}
+                        </div>
+                     )}
+                  </div>
+                ))}
+             </div>
+          );
+
           return (
-            <div className={`min-h-screen p-4 md:p-8 font-sans transition-colors duration-500 ${viewMode === 'teacher' ? 'bg-slate-50 text-slate-900' : 'bg-amber-50 text-slate-800'}`}>
+              <div className="relative min-h-screen p-4 sm:p-6">
+              {toastMessage && (
+                 <div role="status" aria-live="polite" className="fixed top-6 left-1/2 transform -translate-x-1/2 z-50 animate-in slide-in-from-top-4 fade-in bg-slate-800 text-white px-6 py-3 rounded-full shadow-2xl font-bold flex items-center gap-2">
+                    <Icon name="CheckCircle2" className="w-5 h-5 text-emerald-400"/> {toastMessage}
+                 </div>
+              )}
+
               <div className="max-w-6xl mx-auto">
-                
                 {renderHeader()}
 
-                {/* --- STUDENT VIEW --- */}
+                {/* --- 學生展示模式 --- */}
                 {viewMode === 'student' && (
                    <div className="animate-in fade-in zoom-in duration-500">
                      {groups.length === 0 ? (
-                        <div className="max-w-2xl mx-auto bg-white p-8 rounded-3xl shadow-xl border border-amber-100">
-                           <h2 className="text-2xl font-black text-slate-800 mb-2 text-center">步驟一：載入名單</h2>
-                           <p className="text-slate-500 mb-6 text-center text-sm">請將今日上課學生的姓名貼入下方文字框中</p>
+                        <div className="max-w-2xl mx-auto bg-white p-10 rounded-3xl shadow-xl border border-amber-100 mt-10">
+                           <h2 className="text-3xl font-black text-slate-800 mb-2 text-center tracking-tight">步驟一：確認出席名單</h2>
+                           <p className="text-slate-500 mb-8 text-center">請老師貼上今日出席的學生姓名或座號</p>
                            <textarea 
-                              className="w-full h-64 p-5 bg-slate-50 border-2 border-slate-200 rounded-2xl focus:ring-4 focus:ring-rose-100 focus:border-rose-400 outline-none text-lg resize-none mb-6 shadow-inner hide-scrollbar transition-all"
-                              placeholder="請在此貼上名單...&#10;王大明&#10;陳小花&#10;林阿強"
+                              className="w-full h-64 p-6 bg-slate-50 border-2 border-slate-200 rounded-2xl focus:ring-4 focus:ring-rose-100 focus:border-rose-400 outline-none text-xl resize-none mb-8 shadow-inner hide-scrollbar transition-all font-medium leading-relaxed text-slate-700"
+                              placeholder="請在此貼上名單...&#10;1 王大明&#10;2 陳小花&#10;3 林阿強"
                               value={fakeInputList}
                               onChange={(e) => setFakeInputList(e.target.value)}
                            ></textarea>
                            <div className="flex justify-center">
                               <button 
-                                onClick={generateGroups}
-                                disabled={isCalculating}
-                                className="px-10 py-4 bg-gradient-to-r from-rose-500 to-orange-500 text-white text-xl font-bold rounded-2xl shadow-lg hover:shadow-xl hover:-translate-y-1 active:scale-95 transition-all flex items-center gap-3 disabled:opacity-70 disabled:cursor-not-allowed disabled:transform-none"
+                                onClick={generateGroups} disabled={isCalculating}
+                                className="px-12 py-5 bg-gradient-to-r from-rose-500 to-orange-500 text-white text-xl font-bold rounded-2xl shadow-lg hover:shadow-xl hover:-translate-y-1 active:scale-95 transition-all flex items-center gap-3 disabled:opacity-70 disabled:cursor-not-allowed"
                               >
-                                {isCalculating ? (
-                                  <><Icon name="RotateCcw" className="animate-spin w-6 h-6"/> 正在洗牌與分配...</>
-                                ) : (
-                                  <><Icon name="Shuffle" className="w-6 h-6"/> 開始隨機分組</>
-                                )}
+                                {isCalculating ? <><Icon name="RotateCcw" className="animate-spin w-6 h-6"/> 正在高速洗牌...</> : <><Icon name="Shuffle" className="w-6 h-6"/> 開始隨機分組</>}
                               </button>
                            </div>
                         </div>
                      ) : (
                         <div className="space-y-8">
                            <div className="flex justify-center gap-4">
-                              <button 
-                                onClick={generateGroups}
-                                className="px-6 py-2.5 bg-white border-2 border-rose-200 text-rose-600 rounded-full font-bold shadow-sm hover:bg-rose-50 active:scale-95 transition-all flex items-center gap-2"
-                              >
-                                <Icon name="RotateCcw" className={`w-4 h-4 ${isCalculating ? 'animate-spin' : ''}`}/> 
-                                重新洗牌
+                              <button onClick={generateGroups} className="px-6 py-3 bg-white border-2 border-rose-200 text-rose-600 rounded-full font-bold shadow-sm hover:bg-rose-50 active:scale-95 transition-all flex items-center gap-2">
+                                <Icon name="RotateCcw" className={`w-4 h-4 ${isCalculating ? 'animate-spin' : ''}`}/> 重新洗牌
                               </button>
-                              <button 
-                                onClick={clearGroupsAndFakeInput}
-                                className="px-6 py-2.5 bg-amber-200/50 border-2 border-amber-200 text-amber-700 rounded-full font-bold shadow-sm hover:bg-amber-200 active:scale-95 transition-all flex items-center gap-2"
-                              >
-                                <Icon name="Users" className="w-4 h-4"/> 
-                                重新貼上名單
+                              <button onClick={copyResultsToClipboard} className="px-6 py-3 bg-indigo-50 border-2 border-indigo-200 text-indigo-700 rounded-full font-bold shadow-sm hover:bg-indigo-100 active:scale-95 transition-all flex items-center gap-2">
+                                <Icon name="FileText" className="w-4 h-4"/> 複製名單
+                              </button>
+                              <button onClick={clearGroups} className="px-6 py-3 bg-slate-200/50 border-2 border-slate-200 text-slate-600 rounded-full font-bold shadow-sm hover:bg-slate-200 active:scale-95 transition-all flex items-center gap-2">
+                                <Icon name="Trash2" className="w-4 h-4"/> 重新貼上
                               </button>
                            </div>
                            
-                           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                              {groups.map((group) => (
-                                <div key={group.id} className="bg-white rounded-2xl shadow-lg border-2 border-amber-100 overflow-hidden transform hover:-translate-y-1 transition-transform duration-300">
-                                   <div className="bg-gradient-to-r from-amber-100 to-orange-50 p-4 flex justify-between items-center border-b border-amber-100">
-                                      <span className="text-xl font-black text-amber-900">第 {group.id} 組</span>
-                                      <div className="flex gap-1">
-                                        {Array.from({length: group.members.length}).map((_, i) => (
-                                          <div key={i} className="w-2 h-2 rounded-full bg-amber-400"></div>
-                                        ))}
-                                      </div>
-                                   </div>
-                                   <div className="p-6">
-                                      <div className="grid grid-cols-2 gap-4">
-                                        {group.members.map(m => (
-                                           <div key={m.id} className="flex flex-col items-center justify-center p-3 bg-slate-50 rounded-xl border border-slate-100 shadow-sm">
-                                              <div className={`w-2.5 h-2.5 rounded-full mb-2 ${m.gender === 'M' ? 'bg-blue-400' : 'bg-pink-400'}`}></div>
-                                              <span className="font-bold text-lg text-slate-700">{m.name}</span>
-                                           </div>
-                                        ))}
-                                      </div>
-                                   </div>
-                                </div>
-                              ))}
+                           {/* 提示列 */}
+                           <div className="flex justify-center">
+                              <div className="inline-flex items-center gap-2 px-4 py-2 bg-amber-50 border border-amber-200 text-amber-800 rounded-full text-sm font-bold shadow-sm">
+                                 <Icon name="Wand2" className="w-4 h-4"/>
+                                 💡 提示：直接點擊兩名學生即可無縫互換座位
+                                 {swapSource && <button onClick={() => setSwapSource(null)} className="ml-2 px-2 py-0.5 bg-white text-slate-600 rounded shadow-sm hover:bg-slate-100 text-xs border">取消選擇</button>}
+                              </div>
                            </div>
+
+                           {renderInteractiveGrid(true)}
                         </div>
                      )}
                    </div>
                 )}
 
-                {/* --- TEACHER VIEW --- */}
+                {/* --- 老師後台模式 --- */}
                 {viewMode === 'teacher' && activeTab === 'input' && (
                   <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 animate-in fade-in slide-in-from-bottom-4 duration-300">
                     <Card className="lg:col-span-1 h-fit">
-                      <CardHeader className="bg-slate-50/50">
-                        <CardTitle className="flex items-center gap-2">
-                          <Icon name="UserPlus" className="w-5 h-5 text-indigo-600"/> 新增真實資料
-                        </CardTitle>
-                      </CardHeader>
+                      <CardHeader className="bg-slate-50/50"><CardTitle className="flex items-center gap-2"><Icon name="UserPlus" className="w-5 h-5 text-indigo-600"/> 新增資料</CardTitle></CardHeader>
                       <CardContent className="space-y-4">
-                        <div className="space-y-2">
-                           <input type="text" placeholder="姓名" value={newStudent.name} onChange={e => setNewStudent({...newStudent, name: e.target.value})} className="w-full p-2 border rounded"/>
+                        <div className="space-y-3">
                            <div className="flex gap-2">
-                             <input type="number" placeholder="排名" value={newStudent.score} onChange={e => setNewStudent({...newStudent, score: e.target.value})} className="w-1/2 p-2 border rounded"/>
-                             <select value={newStudent.gender} onChange={e => setNewStudent({...newStudent, gender: e.target.value})} className="w-1/2 p-2 border rounded">
-                                <option value="M">男生</option><option value="F">女生</option>
+                             <input type="text" placeholder="座號" value={newStudent.seatNumber} onChange={e => setNewStudent({...newStudent, seatNumber: e.target.value})} className="w-1/3 p-2.5 bg-slate-50 border rounded-lg focus:ring-2 focus:ring-indigo-300 outline-none text-sm font-bold"/>
+                             <input type="text" placeholder="姓名" value={newStudent.name} onChange={e => setNewStudent({...newStudent, name: e.target.value})} className="w-2/3 p-2.5 bg-slate-50 border rounded-lg focus:ring-2 focus:ring-indigo-300 outline-none text-sm font-bold"/>
+                           </div>
+                           <div className="flex gap-2">
+                             <input type="number" placeholder="排名" value={newStudent.score} onChange={e => setNewStudent({...newStudent, score: e.target.value})} className="w-1/2 p-2.5 bg-slate-50 border rounded-lg focus:ring-2 focus:ring-indigo-300 outline-none text-sm font-bold"/>
+                             <select value={newStudent.gender} onChange={e => setNewStudent({...newStudent, gender: e.target.value})} className="w-1/2 p-2.5 bg-slate-50 border rounded-lg focus:ring-2 focus:ring-indigo-300 outline-none text-sm font-bold">
+                                <option value="M">👦 男生</option><option value="F">👧 女生</option>
                              </select>
                            </div>
-                           <button onClick={addStudent} className="w-full bg-indigo-600 text-white py-2 rounded hover:bg-indigo-700">加入</button>
+                           <button onClick={addStudent} className="w-full bg-indigo-600 text-white py-3 rounded-lg font-bold hover:bg-indigo-700 active:scale-95 transition-all">加入名單</button>
                         </div>
-                        <hr/>
-                        <div>
-                           <label className="text-xs font-bold text-slate-500 mb-1 block">批量貼上 (姓名 排名 性別)</label>
-                           <textarea value={bulkInput} onChange={e => setBulkInput(e.target.value)} className="w-full p-2 border rounded h-24 text-sm" placeholder="王小明 1 男"></textarea>
-                           <button onClick={handleBulkImport} className="w-full mt-2 bg-slate-100 py-1.5 rounded text-sm hover:bg-slate-200">批量匯入</button>
+                        <div className="border-t border-slate-100 my-2 pt-4">
+                           <label className="text-xs font-bold text-slate-500 mb-2 block flex items-center gap-1"><Icon name="FileText" className="w-4 h-4"/> 批量貼上 (可無空格，如：1王小明1男)</label>
+                           <div className="flex gap-2 mb-2">
+                             <select aria-label="匯入模式" value={importMode} onChange={e=>setImportMode(e.target.value)} className="flex-1 p-2 bg-white border border-slate-200 rounded-lg text-xs font-bold">
+                               <option value="replace">取代目前名單</option>
+                               <option value="append">追加至目前名單</option>
+                             </select>
+                             {students.length === 0 && <button onClick={loadSampleData} className="px-3 py-2 border border-indigo-200 text-indigo-600 rounded-lg text-xs font-bold hover:bg-indigo-50">載入範例</button>}
+                           </div>
+                           <textarea value={bulkInput} onChange={e => setBulkInput(e.target.value)} className="w-full p-3 bg-slate-50 border border-slate-200 rounded-lg h-32 text-sm font-mono focus:ring-2 focus:ring-indigo-300 outline-none" placeholder="1王小明1男&#10;2陳小花2女&#10;3林阿強3"></textarea>
+                           <button onClick={handleBulkImport} className="w-full mt-2 border-2 border-slate-200 text-slate-700 py-2.5 rounded-lg text-sm font-bold hover:bg-slate-50 active:scale-95 transition-all flex justify-center gap-2"><Icon name="Upload" className="w-4 h-4"/> 執行匯入</button>
                         </div>
                       </CardContent>
                     </Card>
 
                     <Card className="lg:col-span-2">
                       <CardHeader className="flex justify-between items-center bg-slate-50/50">
-                         <CardTitle>真實名單 ({students.length})</CardTitle>
-                         <div className="text-xs space-x-2">
-                            <span className="text-blue-600">男: {students.filter(s=>s.gender==='M').length}</span>
-                            <span className="text-pink-600">女: {students.filter(s=>s.gender==='F').length}</span>
+                         <CardTitle>真實名單 ({students.length}人)</CardTitle>
+                         <div className="flex gap-2 text-xs font-bold">
+                            <span className="text-blue-600 bg-blue-50 px-2 py-1 rounded-md border border-blue-100">男: {students.filter(s=>s.gender==='M').length}</span>
+                            <span className="text-pink-600 bg-pink-50 px-2 py-1 rounded-md border border-pink-100">女: {students.filter(s=>s.gender==='F').length}</span>
                          </div>
                       </CardHeader>
-                      <div className="overflow-auto max-h-[500px]">
+                      <div className="overflow-auto max-h-[600px] bg-white">
                          <table className="w-full text-sm text-left">
-                            <thead className="bg-slate-50 sticky top-0">
-                               <tr><th className="p-3">排名</th><th className="p-3">姓名</th><th className="p-3">性別</th><th className="p-3 text-right">動作</th></tr>
+                            <thead className="bg-slate-50 sticky top-0 border-b border-slate-100 shadow-sm z-10">
+                               <tr><th className="p-4 font-bold text-slate-500">座號</th><th className="p-4 font-bold text-slate-500">姓名</th><th className="p-4 font-bold text-slate-500">排名</th><th className="p-4 font-bold text-slate-500">性別</th><th className="p-4 text-right"></th></tr>
                             </thead>
-                            <tbody className="divide-y">
+                            <tbody className="divide-y divide-slate-100">
                                {students.map(s => (
-                                  <tr key={s.id} className="hover:bg-slate-50">
-                                     <td className="p-3">#{s.score}</td>
-                                     <td className="p-3 font-bold">{s.name}</td>
-                                     <td className="p-3">{s.gender==='M'?'男':'女'}</td>
-                                     <td className="p-3 text-right"><button onClick={()=>deleteStudent(s.id)} className="text-red-400 hover:text-red-600">刪除</button></td>
+                                  <tr key={s.id} className="hover:bg-slate-50 group transition-colors">
+                                     <td className="p-4 font-mono text-slate-400">{s.seatNumber}</td>
+                                     <td className="p-4 font-bold text-slate-800">{s.name}</td>
+                                     <td className="p-4"><span className="bg-slate-100 px-2 py-1 rounded font-mono text-xs text-slate-600">#{s.score}</span></td>
+                                     <td className="p-4">
+                                        <span className={`px-2 py-1 rounded text-xs font-bold ${s.gender === 'M' ? 'bg-blue-100 text-blue-700' : 'bg-pink-100 text-pink-700'}`}>
+                                            {s.gender==='M'?'男生':'女生'}
+                                        </span>
+                                     </td>
+                                     <td className="p-4 text-right">
+                                        <button aria-label={`刪除${s.name}`} onClick={()=>deleteStudent(s.id)} className="text-slate-300 hover:text-red-500 hover:bg-red-50 p-2 rounded-md transition-all opacity-100 sm:opacity-0 sm:group-hover:opacity-100"><Icon name="Trash2" className="w-4 h-4"/></button>
+                                     </td>
                                   </tr>
                                ))}
+                               {students.length === 0 && <tr><td colSpan="5" className="p-10 text-center text-slate-400">目前沒有資料</td></tr>}
                             </tbody>
                          </table>
                       </div>
@@ -634,147 +852,181 @@
 
                 {viewMode === 'teacher' && activeTab === 'constraints' && (
                    <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 animate-in fade-in slide-in-from-bottom-4 duration-300">
+                      
                       <Card className="lg:col-span-1 h-fit">
-                        <CardHeader className="bg-slate-50/50"><CardTitle>設定規則</CardTitle></CardHeader>
+                        <CardHeader className="bg-slate-50/50"><CardTitle className="flex items-center gap-2"><Icon name="LayoutGrid" className="w-5 h-5 text-indigo-600"/> 座位配置</CardTitle></CardHeader>
                         <CardContent className="space-y-6">
-                           <div className="space-y-4">
-                              <div>
-                                 <label className="text-xs font-bold text-slate-500 block mb-1">分組策略</label>
-                                 <div className="flex gap-2">
-                                    <button onClick={()=>setAlgorithm('snake')} className={`flex-1 py-1 text-xs border rounded ${algorithm==='snake'?'bg-indigo-50 border-indigo-500 text-indigo-700':'bg-white'}`}>S型分配</button>
-                                    <button onClick={()=>setAlgorithm('stratified')} className={`flex-1 py-1 text-xs border rounded ${algorithm==='stratified'?'bg-green-50 border-green-500 text-green-700':'bg-white'}`}>分層隨機</button>
-                                 </div>
+                           <div>
+                              <div className="flex justify-between items-center mb-3">
+                                 <label className="text-xs font-bold text-slate-500">各組座位數設定</label>
+                                 <span className="text-xs bg-slate-100 px-2 py-1 rounded font-bold text-slate-600">共 {groupCapacities.reduce((a,b)=>a+b,0)} 個位子</span>
                               </div>
-                              <div>
-                                 <div className="flex justify-between items-center mb-1">
-                                    <label className="text-xs font-bold text-slate-500">總組數: {groupCount}</label>
-                                    <button onClick={setOptimalGroupCount} className="text-[10px] bg-indigo-100 text-indigo-700 px-2 py-0.5 rounded">設為4人一組</button>
-                                 </div>
-                                 <input type="range" min="2" max={Math.max(2, Math.floor(students.length/2))} value={groupCount} onChange={e=>setGroupCount(Number(e.target.value))} className="w-full"/>
+                              <div className="space-y-2 mb-3">
+                                 {groupCapacities.map((cap, i) => (
+                                    <div key={i} className="flex justify-between items-center bg-slate-50 border border-slate-200 p-2 rounded-lg">
+                                       <span className="text-sm font-bold text-slate-700 ml-2">第 {i+1} 組</span>
+                                       <div className="flex items-center gap-3">
+                                          <button onClick={()=>updateCapacity(i, -1)} className="w-7 h-7 flex items-center justify-center bg-white border border-slate-300 rounded hover:bg-slate-100"><Icon name="Minus" className="w-3 h-3 text-slate-600"/></button>
+                                          <span className="font-mono font-bold w-4 text-center">{cap}</span>
+                                          <button onClick={()=>updateCapacity(i, 1)} className="w-7 h-7 flex items-center justify-center bg-white border border-slate-300 rounded hover:bg-slate-100"><Icon name="Plus" className="w-3 h-3 text-slate-600"/></button>
+                                          <button onClick={()=>removeGroup(i)} className="w-7 h-7 flex items-center justify-center ml-2 text-slate-300 hover:text-red-500 hover:bg-red-50 rounded transition-colors"><Icon name="Trash2" className="w-3 h-3"/></button>
+                                       </div>
+                                    </div>
+                                 ))}
                               </div>
-                              <div className="mt-2 bg-indigo-50/50 p-3 rounded-lg border border-indigo-100">
-                                 <label className="text-xs font-bold text-indigo-700 block mb-1">指定人數較少的組別</label>
-                                 <select 
-                                    value={smallGroupId} 
-                                    onChange={e => setSmallGroupId(Number(e.target.value))}
-                                    className="w-full p-2 border border-indigo-200 rounded text-sm bg-white focus:ring-2 focus:ring-indigo-300 outline-none"
-                                 >
-                                    <option value={0}>自動分配 (預設)</option>
-                                    {Array.from({length: groupCount}).map((_, i) => (
-                                       <option key={i+1} value={i+1}>指定 第 {i+1} 組</option>
-                                    ))}
-                                 </select>
+                              <div className="flex gap-2">
+                                <button onClick={addGroup} className="flex-1 bg-white border-2 border-dashed border-slate-300 text-slate-500 py-2 rounded-lg text-sm font-bold hover:bg-slate-50 hover:border-slate-400 transition-all flex items-center justify-center gap-1"><Icon name="Plus" className="w-4 h-4"/> 新增一組</button>
                               </div>
+                              <button onClick={autoBalanceCapacities} className="w-full mt-3 bg-indigo-50 text-indigo-700 py-2.5 rounded-lg text-sm font-bold hover:bg-indigo-100 transition-all flex justify-center items-center gap-2"><Icon name="Calculator" className="w-4 h-4"/> 自動平均分配座位</button>
                            </div>
-                           <hr/>
-                           <div className="space-y-2">
-                              <label className="text-xs font-bold text-slate-500 block">新增排斥/綁定/指定組別</label>
-                              <div className="flex gap-2 mb-2">
-                                 <button onClick={()=>setConstraintInput({...constraintInput, type: 'ban'})} className={`flex-1 py-1.5 rounded text-xs font-bold flex flex-col items-center justify-center gap-1 ${constraintInput.type==='ban' ? 'bg-red-100 text-red-600 ring-2 ring-red-400' : 'bg-slate-50 text-slate-400'}`}>
-                                    <Icon name="Ban" className="w-4 h-4"/> 不要同組
+
+                           <hr className="border-slate-100"/>
+
+                           <div>
+                              <label className="text-xs font-bold text-slate-500 block mb-2">分派策略</label>
+                              <div className="flex flex-col gap-2">
+                                 <button onClick={()=>setAlgorithm('stratified')} className={`p-3 rounded-xl border text-left flex items-start gap-3 transition-all ${algorithm==='stratified'?'bg-emerald-50 border-emerald-300 ring-2 ring-emerald-100':'bg-white hover:bg-slate-50'}`}>
+                                    <Icon name="Shuffle" className={`w-5 h-5 mt-0.5 ${algorithm==='stratified'?'text-emerald-600':'text-slate-400'}`}/>
+                                    <div>
+                                       <div className={`font-bold text-sm ${algorithm==='stratified'?'text-emerald-900':'text-slate-700'}`}>多維度分層隨機 (推薦)</div>
+                                       <p className="text-xs text-slate-500 mt-1">完美適應不對等座位，確保性別與高低分群打散。</p>
+                                    </div>
                                  </button>
-                                 <button onClick={()=>setConstraintInput({...constraintInput, type: 'pair'})} className={`flex-1 py-1.5 rounded text-xs font-bold flex flex-col items-center justify-center gap-1 ${constraintInput.type==='pair' ? 'bg-blue-100 text-blue-600 ring-2 ring-blue-400' : 'bg-slate-50 text-slate-400'}`}>
-                                    <Icon name="Link" className="w-4 h-4"/> 一定同組
-                                 </button>
-                                 <button onClick={()=>setConstraintInput({...constraintInput, type: 'assign'})} className={`flex-1 py-1.5 rounded text-xs font-bold flex flex-col items-center justify-center gap-1 ${constraintInput.type==='assign' ? 'bg-purple-100 text-purple-600 ring-2 ring-purple-400' : 'bg-slate-50 text-slate-400'}`}>
-                                    <Icon name="MapPin" className="w-4 h-4"/> 指定組別
+                                 <button onClick={()=>setAlgorithm('snake')} className={`p-3 rounded-xl border text-left flex items-start gap-3 transition-all ${algorithm==='snake'?'bg-indigo-50 border-indigo-300 ring-2 ring-indigo-100':'bg-white hover:bg-slate-50'}`}>
+                                    <Icon name="GitMerge" className={`w-5 h-5 mt-0.5 ${algorithm==='snake'?'text-indigo-600':'text-slate-400'}`}/>
+                                    <div>
+                                       <div className={`font-bold text-sm ${algorithm==='snake'?'text-indigo-900':'text-slate-700'}`}>S 型強制分配</div>
+                                       <p className="text-xs text-slate-500 mt-1">依序嚴格發牌。</p>
+                                    </div>
                                  </button>
                               </div>
-                              <select value={constraintInput.s1} onChange={e=>setConstraintInput({...constraintInput, s1: e.target.value})} className="w-full p-2 border rounded text-sm mb-2">
-                                 <option value="">選擇學生 A</option>
-                                 {students.map(s=><option key={s.id} value={s.id}>{s.name} (#{s.score})</option>)}
-                              </select>
-                              
-                              {constraintInput.type === 'assign' ? (
-                                 <select value={constraintInput.targetGroup} onChange={e=>setConstraintInput({...constraintInput, targetGroup: e.target.value})} className="w-full p-2 border rounded text-sm bg-purple-50 outline-none focus:ring-2 focus:ring-purple-300">
-                                    {Array.from({length: groupCount}).map((_, i) => (
-                                       <option key={i+1} value={i+1}>鎖定於 👉 第 {i+1} 組</option>
-                                    ))}
-                                 </select>
-                              ) : (
-                                 <select value={constraintInput.s2} onChange={e=>setConstraintInput({...constraintInput, s2: e.target.value})} className="w-full p-2 border rounded text-sm">
-                                    <option value="">選擇學生 B</option>
-                                    {students.filter(s=>String(s.id)!==constraintInput.s1).map(s=><option key={s.id} value={s.id}>{s.name} (#{s.score})</option>)}
-                                 </select>
-                              )}
-                              
-                              <button onClick={addConstraint} className="w-full mt-2 bg-slate-800 text-white py-2 rounded hover:bg-black">新增規則</button>
                            </div>
                         </CardContent>
                       </Card>
 
-                      <Card className="lg:col-span-2">
-                         <CardHeader className="bg-slate-50/50"><CardTitle>規則清單 ({constraints.length})</CardTitle></CardHeader>
-                         <CardContent>
-                            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                               {constraints.map((c, idx) => (
-                                  <div key={idx} className={`flex items-center justify-between p-3 border rounded-lg ${c.type==='ban'?'bg-red-50 border-red-100': c.type==='pair' ? 'bg-blue-50 border-blue-100' : 'bg-purple-50 border-purple-100'}`}>
-                                     
-                                     {c.type === 'assign' ? (
-                                        <div className="flex items-center gap-2 text-sm font-bold text-purple-800">
-                                           <span>{getStudentName(c.s1)}</span>
-                                           <Icon name="MapPin" className="w-4 h-4 text-purple-400"/>
-                                           <span>第 {c.targetGroup} 組</span>
-                                        </div>
-                                     ) : (
-                                        <div className="flex items-center gap-2 text-sm font-bold">
-                                           <span>{getStudentName(c.s1)}</span>
-                                           {c.type === 'ban' ? <Icon name="Ban" className="w-4 h-4 text-red-400"/> : <Icon name="Link" className="w-4 h-4 text-blue-400"/>}
-                                           <span>{getStudentName(c.s2)}</span>
-                                        </div>
-                                     )}
-                                     
-                                     <button onClick={()=>removeConstraint(idx)} className="text-slate-400 hover:text-slate-600">×</button>
-                                  </div>
-                               ))}
-                               {constraints.length === 0 && <div className="col-span-2 text-center text-slate-400 py-8">暫無設定</div>}
-                            </div>
-                         </CardContent>
-                      </Card>
+                      <div className="lg:col-span-2 space-y-6">
+                        <Card>
+                           <CardHeader className="bg-slate-50/50"><CardTitle className="flex items-center gap-2"><Icon name="Link" className="w-5 h-5 text-indigo-600"/> 新增特殊規則</CardTitle></CardHeader>
+                           <CardContent>
+                              <div className="flex flex-col md:flex-row gap-4">
+                                 <div className="w-full md:w-1/3 flex flex-col gap-2">
+                                    <button onClick={()=>setConstraintInput({...constraintInput, type: 'ban'})} className={`py-2 rounded-lg text-sm font-bold flex items-center justify-center gap-2 transition-all ${constraintInput.type==='ban' ? 'bg-red-50 text-red-600 border border-red-200 shadow-sm' : 'bg-white border border-slate-200 text-slate-500 hover:bg-slate-50'}`}>
+                                       <Icon name="Ban" className="w-4 h-4"/> 不要同組
+                                    </button>
+                                    <button onClick={()=>setConstraintInput({...constraintInput, type: 'pair'})} className={`py-2 rounded-lg text-sm font-bold flex items-center justify-center gap-2 transition-all ${constraintInput.type==='pair' ? 'bg-blue-50 text-blue-600 border border-blue-200 shadow-sm' : 'bg-white border border-slate-200 text-slate-500 hover:bg-slate-50'}`}>
+                                       <Icon name="Link" className="w-4 h-4"/> 一定要同組
+                                    </button>
+                                    <button onClick={()=>setConstraintInput({...constraintInput, type: 'assign'})} className={`py-2 rounded-lg text-sm font-bold flex items-center justify-center gap-2 transition-all ${constraintInput.type==='assign' ? 'bg-purple-50 text-purple-600 border border-purple-200 shadow-sm' : 'bg-white border border-slate-200 text-slate-500 hover:bg-slate-50'}`}>
+                                       <Icon name="MapPin" className="w-4 h-4"/> 指定組別
+                                    </button>
+                                 </div>
+                                 
+                                 <div className="w-full md:w-2/3 flex flex-col justify-center gap-3">
+                                    <select value={constraintInput.s1} onChange={e=>setConstraintInput({...constraintInput, s1: e.target.value})} className="w-full p-3 bg-slate-50 border border-slate-200 rounded-lg text-sm font-bold focus:ring-2 focus:ring-indigo-300 outline-none">
+                                       <option value="">請選擇學生 A...</option>
+                                       {students.map(s=><option key={s.id} value={s.id}>{s.seatNumber}. {s.name}</option>)}
+                                    </select>
+                                    
+                                    {constraintInput.type === 'assign' ? (
+                                       <select value={constraintInput.targetGroup} onChange={e=>setConstraintInput({...constraintInput, targetGroup: e.target.value})} className="w-full p-3 bg-purple-50 border border-purple-200 text-purple-900 rounded-lg text-sm font-bold focus:ring-2 focus:ring-purple-400 outline-none">
+                                          {groupCapacities.map((_, i) => (
+                                             <option key={i+1} value={i+1}>📍 鎖定座位：第 {i+1} 組</option>
+                                          ))}
+                                       </select>
+                                    ) : (
+                                       <select value={constraintInput.s2} onChange={e=>setConstraintInput({...constraintInput, s2: e.target.value})} className="w-full p-3 bg-slate-50 border border-slate-200 rounded-lg text-sm font-bold focus:ring-2 focus:ring-indigo-300 outline-none">
+                                          <option value="">請選擇學生 B...</option>
+                                          {students.filter(s=>String(s.id)!==String(constraintInput.s1)).map(s=><option key={s.id} value={s.id}>{s.seatNumber}. {s.name}</option>)}
+                                       </select>
+                                    )}
+                                    
+                                    <button onClick={addConstraint} className="w-full bg-slate-800 text-white py-3 rounded-lg font-bold shadow hover:bg-black active:scale-95 transition-all">加入規則清單</button>
+                                 </div>
+                              </div>
+                           </CardContent>
+                        </Card>
+
+                        <Card>
+                           <CardHeader className="bg-slate-50/50"><CardTitle>已生效規則 ({constraints.length})</CardTitle></CardHeader>
+                           <CardContent>
+                              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                                 {constraints.map((c, idx) => (
+                                    <div key={idx} className={`flex items-center justify-between p-3 border rounded-xl shadow-sm ${c.type==='ban'?'bg-red-50 border-red-100': c.type==='pair' ? 'bg-blue-50 border-blue-100' : 'bg-purple-50 border-purple-100'}`}>
+                                       
+                                       {c.type === 'assign' ? (
+                                          <div className="flex items-center gap-3 text-sm font-bold text-purple-800">
+                                             <span className="bg-white px-2 py-1 rounded-md border border-purple-100">{getStudentName(c.s1)}</span>
+                                             <Icon name="MapPin" className="w-4 h-4 text-purple-400"/>
+                                             <span>第 {c.targetGroup} 組</span>
+                                          </div>
+                                       ) : (
+                                          <div className="flex items-center gap-3 text-sm font-bold text-slate-700">
+                                             <span className="bg-white px-2 py-1 rounded-md border">{getStudentName(c.s1)}</span>
+                                             {c.type === 'ban' ? <Icon name="Ban" className="w-4 h-4 text-red-500"/> : <Icon name="Link" className="w-4 h-4 text-blue-500"/>}
+                                             <span className="bg-white px-2 py-1 rounded-md border">{getStudentName(c.s2)}</span>
+                                          </div>
+                                       )}
+                                       
+                                       <button onClick={()=>removeConstraint(idx)} className="w-8 h-8 flex items-center justify-center bg-white rounded-full text-slate-400 hover:text-red-500 shadow-sm transition-all"><Icon name="Trash2" className="w-4 h-4"/></button>
+                                    </div>
+                                 ))}
+                                 {constraints.length === 0 && <div className="col-span-2 text-center text-slate-400 py-10 border-2 border-dashed border-slate-200 rounded-xl">目前沒有設定任何特殊規則</div>}
+                              </div>
+                           </CardContent>
+                        </Card>
+                      </div>
                    </div>
                 )}
 
                 {viewMode === 'teacher' && activeTab === 'result' && (
                    <div className="animate-in fade-in slide-in-from-bottom-4 duration-300">
                       <div className="flex justify-between items-center mb-6">
-                         <div className="flex gap-2">
-                            <button onClick={generateGroups} className="px-4 py-2 bg-indigo-600 text-white rounded font-bold shadow hover:bg-indigo-700 flex items-center gap-2">
-                               <Icon name="RotateCcw" className={`w-4 h-4 ${isCalculating?'animate-spin':''}`}/> 運算
+                         <div className="flex gap-3">
+                            <button onClick={generateGroups} disabled={isCalculating} className="px-6 py-2.5 bg-indigo-600 text-white rounded-xl font-bold shadow hover:bg-indigo-700 hover:shadow-md active:scale-95 transition-all flex items-center gap-2">
+                               <Icon name="RotateCcw" className={`w-4 h-4 ${isCalculating?'animate-spin':''}`}/> 執行運算分配
                             </button>
-                            <button onClick={clearGroups} className="px-4 py-2 bg-white border border-slate-300 text-slate-600 rounded font-bold hover:bg-slate-50 flex items-center gap-2">
+                            <button onClick={copyResultsToClipboard} className="px-4 py-2.5 bg-indigo-50 text-indigo-700 border border-indigo-200 rounded-xl font-bold hover:bg-indigo-100 flex items-center gap-2 transition-all">
+                               <Icon name="FileText" className="w-4 h-4"/> 複製名單
+                            </button>
+                            <button onClick={clearGroups} className="px-4 py-2.5 bg-white border border-slate-300 text-slate-600 rounded-xl font-bold hover:bg-slate-50 flex items-center gap-2 transition-all">
                                <Icon name="Trash2" className="w-4 h-4"/> 清除
                             </button>
-                            {lastPlaceRuleApplied && <span className="bg-emerald-100 text-emerald-700 px-3 py-2 rounded text-sm font-bold flex items-center gap-1"><Icon name="ShieldCheck" className="w-4 h-4"/> 守門員機制</span>}
-                            {groups.some(g=>g.stats.hasConflict) && <span className="bg-red-100 text-red-700 px-3 py-2 rounded text-sm font-bold flex items-center gap-1"><Icon name="AlertCircle" className="w-4 h-4"/> 衝突</span>}
                          </div>
-                         <div className="text-sm text-slate-500">平均排名: {(groups.reduce((a,c)=>a+parseFloat(c.stats.avg),0)/Math.max(1, groups.length)).toFixed(1)}</div>
+                         <div className="flex items-center gap-2">
+                             {groups.some(g=>g.stats.hasConflict) && <span className="bg-red-100 text-red-700 px-3 py-1.5 rounded-lg text-sm font-bold flex items-center gap-1"><Icon name="AlertCircle" className="w-4 h-4"/> 人員衝突警告</span>}
+                             <div className="text-sm font-bold text-slate-500 bg-white px-4 py-2 border rounded-xl shadow-sm">
+                                全體平均排名: {groups.length ? (groups.reduce((sum, g) => sum + g.members.reduce((s, m) => s + Number(m.score), 0), 0) / Math.max(1, groups.reduce((sum, g) => sum + g.members.length, 0))).toFixed(1) : '—'}
+                             </div>
+                         </div>
                       </div>
                       
-                      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                         {groups.map((group) => (
-                            <div key={group.id} className={`bg-white rounded-xl border shadow-sm ${group.stats.hasConflict ? 'border-red-300 ring-2 ring-red-100' : 'border-slate-200'}`}>
-                               <div className="px-4 py-2 bg-slate-50 border-b flex justify-between items-center text-sm">
-                                  <span className="font-bold">第 {group.id} 組</span>
-                                  <span className="text-slate-400 text-xs">均: {group.stats.avg}</span>
-                               </div>
-                               <div className="p-3 grid grid-cols-2 gap-2">
-                                  {group.members.map(m => (
-                                     <div key={m.id} className="relative p-2 border rounded bg-white flex flex-col items-center">
-                                        {/* 如果該學生被指定在此組，顯示圖示 */}
-                                        {constraints.some(c => c.type === 'assign' && c.s1 === m.id) && (
-                                           <Icon name="MapPin" className="absolute top-1 left-1 w-3 h-3 text-purple-400"/>
-                                        )}
-                                        <span className="text-xs text-slate-400">#{m.score}</span>
-                                        <span className={`font-bold ${m.gender==='M'?'text-blue-600':'text-pink-600'}`}>{m.name}</span>
-                                     </div>
-                                  ))}
-                                  {Array.from({length: Math.max(0, 4-group.members.length)}).map((_,i)=>(
-                                     <div key={i} className="p-2 border border-dashed rounded flex items-center justify-center text-xs text-slate-300">空</div>
-                                  ))}
-                               </div>
-                            </div>
-                         ))}
+                      {/* 提示列 */}
+                      <div className="mb-6 p-3 bg-indigo-50 rounded-xl border border-indigo-100 text-indigo-800 text-sm flex items-center justify-between shadow-sm">
+                        <div className="flex items-center gap-2">
+                           <Icon name="Wand2" className="w-4 h-4"/>
+                           <span><strong>手動微調模式：</strong> 點擊第一位學生，再點擊另一位學生或空位，即可無縫交換座位。</span>
+                        </div>
+                        {swapSource && <button onClick={() => setSwapSource(null)} className="px-3 py-1 bg-white text-slate-600 rounded shadow-sm text-xs font-bold hover:bg-slate-50 border">取消選擇</button>}
                       </div>
+
+                      {groups.length === 0 ? (
+                         <div className="text-center py-32 bg-white rounded-3xl border-2 border-dashed border-slate-200">
+                           <Icon name="LayoutGrid" className="w-16 h-16 text-slate-200 mx-auto mb-4" />
+                           <p className="text-slate-400 font-medium">請點擊上方按鈕執行運算分配</p>
+                         </div>
+                      ) : (
+                        <>
+                          {[...new Set(groups.flatMap(g => g.stats.issues || []))].length > 0 && (
+                            <div role="alert" className="mb-6 bg-red-50 border border-red-200 rounded-2xl p-4 text-red-800">
+                              <div className="font-bold mb-2 flex items-center gap-2"><Icon name="AlertCircle" className="w-5 h-5"/> 以下規則未能完全滿足</div>
+                              <ul className="list-disc pl-6 text-sm space-y-1">
+                                {[...new Set(groups.flatMap(g => g.stats.issues || []))].map(issue => <li key={issue}>{issue}</li>)}
+                              </ul>
+                            </div>
+                          )}
+                          {renderInteractiveGrid(false)}
+                        </>
+                      )}
                    </div>
                 )}
 
