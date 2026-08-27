@@ -46,7 +46,9 @@
             Upload: '<path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/>',
             FileText: '<path d="M14.5 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7.5L14.5 2z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/><line x1="10" y1="9" x2="8" y2="9"/>',
             Calculator: '<rect x="4" y="2" width="16" height="20" rx="2"/><line x1="8" y1="6" x2="16" y2="6"/><line x1="16" y1="14" x2="16" y2="18"/><path d="M16 10h.01"/><path d="M12 10h.01"/><path d="M8 10h.01"/><path d="M8 14h.01"/><path d="M8 18h.01"/><path d="M12 14h.01"/><path d="M12 18h.01"/>',
-            CheckCircle2: '<circle cx="12" cy="12" r="10"/><path d="m9 12 2 2 4-4"/>'
+            CheckCircle2: '<circle cx="12" cy="12" r="10"/><path d="m9 12 2 2 4-4"/>',
+            Download: '<path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/>',
+            FolderOpen: '<path d="m6 14 1.45-2.9A2 2 0 0 1 9.24 10H20a2 2 0 0 1 1.94 2.5l-1.55 6a2 2 0 0 1-1.94 1.5H4a2 2 0 0 1-2-2V5c0-1.1.9-2 2-2h3.93a2 2 0 0 1 1.66.9l.82 1.2a2 2 0 0 0 1.66.9H18a2 2 0 0 1 2 2v2"/>'
         };
 
         const Icon = ({ name, className }) => {
@@ -84,37 +86,89 @@
           const [constraintInput, setConstraintInput] = useState({ s1: '', s2: '', type: 'ban', targetGroup: 1 });
           
           const [isCalculating, setIsCalculating] = useState(false);
-          const [toastMessage, setToastMessage] = useState('');
-          const [fakeInputList, setFakeInputList] = useState('');
-          const [importMode, setImportMode] = useState('replace');
-          
-          // 手動微調狀態紀錄：{ groupId, studentId }
-          const [swapSource, setSwapSource] = useState(null); 
+        const [toastMessage, setToastMessage] = useState('');
+        const [fakeInputList, setFakeInputList] = useState('');
+        const [importMode, setImportMode] = useState('replace');
+        const [isConfirmingClear, setIsConfirmingClear] = useState(false);
+        const toastTimerRef = useRef(null);
+        const calculationTimerRef = useRef(null);
 
-          const toastTimerRef = useRef(null);
-          const calculationTimerRef = useRef(null);
+        // 💾 自動讀取本機存檔 (Local Storage)
+        useEffect(() => {
+          try {
+            const savedData = localStorage.getItem('ClassSeatingData');
+            if (savedData) {
+              const parsed = JSON.parse(savedData);
+              if (parsed.students && parsed.students.length > 0) setStudents(parsed.students);
+              if (parsed.groupCapacities) setGroupCapacities(parsed.groupCapacities);
+              if (parsed.constraints) setConstraints(parsed.constraints);
+            }
+          } catch (e) {
+            console.error("讀取存檔失敗", e);
+          }
+        }, []);
 
-          // 💾 自動讀取本機存檔 (Local Storage)
-          useEffect(() => {
-            try {
-              const savedData = localStorage.getItem('ClassSeatingData');
-              if (savedData) {
-                const parsed = JSON.parse(savedData);
-                if (parsed.students && parsed.students.length > 0) setStudents(parsed.students);
-                if (parsed.groupCapacities) setGroupCapacities(parsed.groupCapacities);
-                if (parsed.constraints) setConstraints(parsed.constraints);
+        // 💾 資料變更時自動寫入存檔
+        useEffect(() => {
+           const dataToSave = { students, groupCapacities, constraints };
+           localStorage.setItem('ClassSeatingData', JSON.stringify(dataToSave));
+        }, [students, groupCapacities, constraints]);
+
+        // 📥 匯出資料為 JSON 檔案 (供跨電腦使用)
+        const exportData = () => {
+           if (students.length === 0) {
+               showToast('目前沒有資料可以匯出喔！');
+               return;
+           }
+           const dataToSave = { students, groupCapacities, constraints };
+           const blob = new Blob([JSON.stringify(dataToSave, null, 2)], { type: "application/json" });
+           const url = URL.createObjectURL(blob);
+           const a = document.createElement('a');
+           a.href = url;
+           a.download = `班級分組存檔_${new Date().toISOString().slice(0,10)}.json`;
+           a.click();
+           URL.revokeObjectURL(url);
+           showToast('📥 存檔已下載！可透過隨身碟或LINE傳到另一台電腦使用');
+        };
+
+        // 📂 讀取 JSON 存檔
+        const importData = (event) => {
+           const file = event.target.files[0];
+           if (!file) return;
+           const reader = new FileReader();
+           reader.onload = (e) => {
+              try {
+                 const parsed = JSON.parse(e.target.result);
+                 if (parsed.students) setStudents(parsed.students);
+                 if (parsed.groupCapacities) setGroupCapacities(parsed.groupCapacities);
+                 if (parsed.constraints) setConstraints(parsed.constraints);
+                 setGroups([]); // 清空分組結果
+                 showToast('📂 存檔讀取成功！所有資料已還原');
+              } catch (error) {
+                 showToast('❌ 檔案格式錯誤，讀取失敗');
               }
-            } catch (e) { console.error("讀取存檔失敗", e); }
-          }, []);
+           };
+           reader.readAsText(file);
+           event.target.value = ''; // 清空 input 讓下次選同一個檔案也能觸發 onChange
+        };
 
-          // 💾 資料變更時自動存檔
-          useEffect(() => {
-             const dataToSave = { students, groupCapacities, constraints };
-             localStorage.setItem('ClassSeatingData', JSON.stringify(dataToSave));
-          }, [students, groupCapacities, constraints]);
+        const handleClearData = () => {
+            if (!isConfirmingClear) {
+                setIsConfirmingClear(true);
+                setTimeout(() => setIsConfirmingClear(false), 3000);
+                showToast('⚠️ 再次點擊以確認清除所有資料');
+            } else {
+                localStorage.removeItem('ClassSeatingData');
+                setStudents([]);
+                setConstraints([]);
+                setGroups([]);
+                setIsConfirmingClear(false);
+                showToast('🗑️ 本機資料已完全清除');
+            }
+        };
 
-          const showToast = (msg) => {
-             setToastMessage(msg);
+        const showToast = (msg) => {
+           setToastMessage(msg);
              if (toastTimerRef.current) clearTimeout(toastTimerRef.current);
              toastTimerRef.current = setTimeout(() => setToastMessage(''), 3000);
           };
@@ -785,6 +839,29 @@
                     <Card className="lg:col-span-1 h-fit">
                       <CardHeader className="bg-slate-50/50"><CardTitle className="flex items-center gap-2"><Icon name="UserPlus" className="w-5 h-5 text-indigo-600"/> 新增資料</CardTitle></CardHeader>
                       <CardContent className="space-y-4">
+                        
+                        {/* 存檔與備份功能 */}
+                        <div className="bg-indigo-50 border border-indigo-100 rounded-xl p-3 mb-2">
+                           <label className="text-xs font-bold text-indigo-800 mb-2 block flex items-center gap-1">資料存檔與備份</label>
+                           <div className="flex gap-2 flex-wrap">
+                             <button onClick={exportData} className="flex-1 bg-white border border-indigo-200 text-indigo-600 py-1.5 px-2 rounded-lg text-xs font-bold hover:bg-indigo-100 transition-all flex justify-center items-center gap-1 shadow-sm min-w-[28%]">
+                                <Icon name="Download" className="w-3 h-3"/> 下載備份
+                             </button>
+                             <label className="flex-1 bg-white border border-indigo-200 text-indigo-600 py-1.5 px-2 rounded-lg text-xs font-bold hover:bg-indigo-100 transition-all flex justify-center items-center gap-1 shadow-sm cursor-pointer min-w-[28%]">
+                                <Icon name="FolderOpen" className="w-3 h-3"/> 讀取備份
+                                <input type="file" accept=".json" className="hidden" onChange={importData} />
+                             </label>
+                             <button onClick={handleClearData} className={`flex-1 bg-white border py-1.5 px-2 rounded-lg text-xs font-bold transition-all flex justify-center items-center gap-1 shadow-sm min-w-[28%] ${isConfirmingClear ? 'border-red-400 text-red-600 bg-red-50' : 'border-slate-200 text-slate-500 hover:bg-slate-100'}`}>
+                                <Icon name="Trash2" className="w-3 h-3"/> {isConfirmingClear ? '再次點擊確認' : '清空本機資料'}
+                             </button>
+                           </div>
+                           <p className="text-[10px] text-indigo-600 mt-2 leading-tight">
+                              💡 系統已啟用<strong>自動本機儲存 (Local Storage)</strong>，重整網頁資料不會遺失。<br/>
+                              若需跨裝置使用，請先下載備份檔 (.json)，再到另一台裝置上讀取。
+                           </p>
+                        </div>
+                        <hr className="border-slate-100" />
+
                         <div className="space-y-3">
                            <div className="flex gap-2">
                              <input type="text" placeholder="座號" value={newStudent.seatNumber} onChange={e => setNewStudent({...newStudent, seatNumber: e.target.value})} className="w-1/3 p-2.5 bg-slate-50 border rounded-lg focus:ring-2 focus:ring-indigo-300 outline-none text-sm font-bold"/>
