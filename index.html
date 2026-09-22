@@ -490,156 +490,176 @@
             setSwapSource(null);
             
             calculationTimerRef.current = setTimeout(() => {
-              // 1. 初始化空組別
-              let tempGroups = groupCapacities.map((cap, i) => ({
-                id: i + 1,
-                capacity: cap,
-                members: [],
-                stats: { avg: 0, mCount: 0, fCount: 0, hasConflict: false }
-              }));
+              let bestGroups = null;
+              let minIssuesCount = Infinity;
+              const maxAttempts = 20; // 核心升級：若陷入死胡同，背景自動重抽重跑最多 20 輪
 
-              // 2. 預先安插「指定組別」的學生
-              const assignedIds = new Set();
-              activeConstraints.forEach(c => {
-                 if (c.type === 'assign') {
-                    const student = roster.find(s => String(s.id) === String(c.s1));
-                    if (student && c.targetGroup >= 1 && c.targetGroup <= tempGroups.length) {
-                       tempGroups[c.targetGroup - 1].members.push(student);
-                       assignedIds.add(student.id);
-                    }
-                 }
-              });
+              for (let attempt = 0; attempt < maxAttempts; attempt++) {
+                // 1. 初始化空組別
+                let tempGroups = groupCapacities.map((cap, i) => ({
+                  id: i + 1,
+                  capacity: cap,
+                  members: [],
+                  stats: { avg: 0, mCount: 0, fCount: 0, hasConflict: false }
+                }));
 
-              // 3. 準備尚未被指定的學生
-              let boys = roster.filter(s => s.gender === 'M' && !assignedIds.has(s.id)).sort((a, b) => a.score - b.score);
-              let girls = roster.filter(s => s.gender === 'F' && !assignedIds.has(s.id)).sort((a, b) => a.score - b.score);
-
-              // 核心發牌函式：具備性別防護機制
-              const distribute = (list, genderStr) => {
-                 list.forEach(student => {
-                    tempGroups.sort((a, b) => {
-                       const isFullA = a.members.length >= a.capacity;
-                       const isFullB = b.members.length >= b.capacity;
-                       if (isFullA && !isFullB) return 1;
-                       if (!isFullA && isFullB) return -1;
-
-                       const limitA = Math.ceil(a.capacity / 2);
-                       const limitB = Math.ceil(b.capacity / 2);
-                       const genderCountA = a.members.filter(m => m.gender === genderStr).length;
-                       const genderCountB = b.members.filter(m => m.gender === genderStr).length;
-                       
-                       const overLimitA = genderCountA >= limitA;
-                       const overLimitB = genderCountB >= limitB;
-                       
-                       if (overLimitA && !overLimitB) return 1;
-                       if (!overLimitA && overLimitB) return -1;
-
-                       const vacancyA = a.capacity - a.members.length;
-                       const vacancyB = b.capacity - b.members.length;
-                       if (vacancyA !== vacancyB) return vacancyB - vacancyA; 
-
-                       const sumA = a.members.reduce((acc, m) => acc + m.score, 0);
-                       const sumB = b.members.reduce((acc, m) => acc + m.score, 0);
-                       return sumB - sumA;
-                    });
-                    
-                    if (tempGroups[0].members.length < tempGroups[0].capacity) {
-                        tempGroups[0].members.push(student);
-                    }
-                 });
-              };
-
-              if (algorithm === 'snake') {
-                 distribute(boys, 'M');
-                 distribute(girls, 'F');
-              } else {
-                 const maxLen = Math.max(boys.length, girls.length);
-                 let interleaved = [];
-                 for(let i=0; i<maxLen; i++){
-                    if (i < boys.length) interleaved.push(boys[i]);
-                    if (i < girls.length) interleaved.push(girls[i]);
-                 }
-                 
-                 const sliceSize = tempGroups.length; 
-                 for (let i=0; i<interleaved.length; i+=sliceSize) {
-                    let chunk = interleaved.slice(i, i+sliceSize);
-                    chunk = shuffleArray(chunk);
-                    chunk.forEach(student => distribute([student], student.gender));
-                 }
-              }
-
-              // 恢復組別順序
-              tempGroups.sort((a, b) => a.id - b.id);
-
-              // 輔助檢查能否移動
-              const canMove = (studentId, proposedGroupIdx) => {
-                 const assignRule = activeConstraints.find(c => c.type === 'assign' && String(c.s1) === String(studentId));
-                 if (assignRule) return (assignRule.targetGroup - 1) === proposedGroupIdx;
-                 return true;
-              };
-
-              let iteration = 0;
-              let hasIssue = true;
-              while (hasIssue && iteration < 300) {
-                hasIssue = false;
-                iteration++;
-                
-                const memberMap = {};
-                tempGroups.forEach((g, gIdx) => g.members.forEach(m => memberMap[m.id] = gIdx));
-
-                for (const constraint of activeConstraints) {
-                  if (constraint.type === 'assign') continue;
-
-                  const g1 = memberMap[constraint.s1];
-                  const g2 = memberMap[constraint.s2];
-                  if (g1 === undefined || g2 === undefined) continue;
-
-                  if (constraint.type === 'ban' && g1 === g2) {
-                    hasIssue = true;
-                    const groupIndex = g1;
-                    const studentA = tempGroups[groupIndex].members.find(m => String(m.id) === String(constraint.s1));
-                    let swapped = false;
-                    const targetIndices = shuffleArray(Array.from({length: tempGroups.length}, (_, i) => i).filter(i => i !== groupIndex));
-
-                    for (const targetGIdx of targetIndices) {
-                      const targetGroup = tempGroups[targetGIdx];
-                      const candidates = targetGroup.members.filter(m => m.gender === studentA.gender);
-                      
-                      for (const candidate of candidates) {
-                         if (canMove(studentA.id, targetGIdx) && canMove(candidate.id, groupIndex)) {
-                            tempGroups[groupIndex].members = tempGroups[groupIndex].members.filter(m => m.id !== studentA.id);
-                            targetGroup.members = targetGroup.members.filter(m => m.id !== candidate.id);
-                            targetGroup.members.push(studentA);
-                            tempGroups[groupIndex].members.push(candidate);
-                            swapped = true;
-                            break;
-                         }
+                // 2. 預先安插「指定組別」的學生
+                const assignedIds = new Set();
+                activeConstraints.forEach(c => {
+                   if (c.type === 'assign') {
+                      const student = roster.find(s => String(s.id) === String(c.s1));
+                      if (student && c.targetGroup >= 1 && c.targetGroup <= tempGroups.length) {
+                         tempGroups[c.targetGroup - 1].members.push(student);
+                         assignedIds.add(student.id);
                       }
-                      if (swapped) break;
-                    }
-                  }
+                   }
+                });
 
-                  if (constraint.type === 'pair' && g1 !== g2) {
-                    hasIssue = true;
-                    const student1 = tempGroups[g1].members.find(m => String(m.id) === String(constraint.s1));
-                    const student2 = tempGroups[g2].members.find(m => String(m.id) === String(constraint.s2));
-                    
-                    const swapCandidate1 = tempGroups[g1].members.find(m => 
-                      m.id !== student1.id && m.gender === student2.gender && canMove(m.id, g2)
-                    );
-                    
-                    if (swapCandidate1 && canMove(student2.id, g1)) {
-                       tempGroups[g1].members = tempGroups[g1].members.filter(m => m.id !== swapCandidate1.id);
-                       tempGroups[g2].members = tempGroups[g2].members.filter(m => m.id !== student2.id);
-                       tempGroups[g1].members.push(student2);
-                       tempGroups[g2].members.push(swapCandidate1);
-                       break; 
+                // 3. 準備尚未被指定的學生
+                let boys = roster.filter(s => s.gender === 'M' && !assignedIds.has(s.id)).sort((a, b) => a.score - b.score);
+                let girls = roster.filter(s => s.gender === 'F' && !assignedIds.has(s.id)).sort((a, b) => a.score - b.score);
+
+                // 核心發牌函式：具備性別防護機制
+                const distribute = (list, genderStr) => {
+                   list.forEach(student => {
+                      tempGroups.sort((a, b) => {
+                         const isFullA = a.members.length >= a.capacity;
+                         const isFullB = b.members.length >= b.capacity;
+                         if (isFullA && !isFullB) return 1;
+                         if (!isFullA && isFullB) return -1;
+
+                         const limitA = Math.ceil(a.capacity / 2);
+                         const limitB = Math.ceil(b.capacity / 2);
+                         const genderCountA = a.members.filter(m => m.gender === genderStr).length;
+                         const genderCountB = b.members.filter(m => m.gender === genderStr).length;
+                         
+                         const overLimitA = genderCountA >= limitA;
+                         const overLimitB = genderCountB >= limitB;
+                         
+                         if (overLimitA && !overLimitB) return 1;
+                         if (!overLimitA && overLimitB) return -1;
+
+                         const vacancyA = a.capacity - a.members.length;
+                         const vacancyB = b.capacity - b.members.length;
+                         if (vacancyA !== vacancyB) return vacancyB - vacancyA; 
+
+                         const sumA = a.members.reduce((acc, m) => acc + m.score, 0);
+                         const sumB = b.members.reduce((acc, m) => acc + m.score, 0);
+                         return sumB - sumA;
+                      });
+                      
+                      if (tempGroups[0].members.length < tempGroups[0].capacity) {
+                          tempGroups[0].members.push(student);
+                      }
+                   });
+                };
+
+                if (algorithm === 'snake') {
+                   distribute(boys, 'M');
+                   distribute(girls, 'F');
+                } else {
+                   const maxLen = Math.max(boys.length, girls.length);
+                   let interleaved = [];
+                   for(let i=0; i<maxLen; i++){
+                      if (i < boys.length) interleaved.push(boys[i]);
+                      if (i < girls.length) interleaved.push(girls[i]);
+                   }
+                   
+                   const sliceSize = tempGroups.length; 
+                   for (let i=0; i<interleaved.length; i+=sliceSize) {
+                      let chunk = interleaved.slice(i, i+sliceSize);
+                      chunk = shuffleArray(chunk);
+                      chunk.forEach(student => distribute([student], student.gender));
+                   }
+                }
+
+                // 恢復組別順序
+                tempGroups.sort((a, b) => a.id - b.id);
+
+                // 輔助檢查能否移動
+                const canMove = (studentId, proposedGroupIdx) => {
+                   const assignRule = activeConstraints.find(c => c.type === 'assign' && String(c.s1) === String(studentId));
+                   if (assignRule) return (assignRule.targetGroup - 1) === proposedGroupIdx;
+                   return true;
+                };
+
+                let iteration = 0;
+                let hasIssue = true;
+                while (hasIssue && iteration < 300) {
+                  hasIssue = false;
+                  iteration++;
+                  
+                  const memberMap = {};
+                  tempGroups.forEach((g, gIdx) => g.members.forEach(m => memberMap[m.id] = gIdx));
+
+                  for (const constraint of activeConstraints) {
+                    if (constraint.type === 'assign') continue;
+
+                    const g1 = memberMap[constraint.s1];
+                    const g2 = memberMap[constraint.s2];
+                    if (g1 === undefined || g2 === undefined) continue;
+
+                    if (constraint.type === 'ban' && g1 === g2) {
+                      hasIssue = true;
+                      const groupIndex = g1;
+                      const studentA = tempGroups[groupIndex].members.find(m => String(m.id) === String(constraint.s1));
+                      let swapped = false;
+                      const targetIndices = shuffleArray(Array.from({length: tempGroups.length}, (_, i) => i).filter(i => i !== groupIndex));
+
+                      for (const targetGIdx of targetIndices) {
+                        const targetGroup = tempGroups[targetGIdx];
+                        const candidates = targetGroup.members.filter(m => m.gender === studentA.gender);
+                        
+                        for (const candidate of candidates) {
+                           if (canMove(studentA.id, targetGIdx) && canMove(candidate.id, groupIndex)) {
+                              tempGroups[groupIndex].members = tempGroups[groupIndex].members.filter(m => m.id !== studentA.id);
+                              targetGroup.members = targetGroup.members.filter(m => m.id !== candidate.id);
+                              targetGroup.members.push(studentA);
+                              tempGroups[groupIndex].members.push(candidate);
+                              swapped = true;
+                              break;
+                           }
+                        }
+                        if (swapped) break;
+                      }
+                    }
+
+                    if (constraint.type === 'pair' && g1 !== g2) {
+                      hasIssue = true;
+                      const student1 = tempGroups[g1].members.find(m => String(m.id) === String(constraint.s1));
+                      const student2 = tempGroups[g2].members.find(m => String(m.id) === String(constraint.s2));
+                      
+                      const swapCandidate1 = tempGroups[g1].members.find(m => 
+                        m.id !== student1.id && m.gender === student2.gender && canMove(m.id, g2)
+                      );
+                      
+                      if (swapCandidate1 && canMove(student2.id, g1)) {
+                         tempGroups[g1].members = tempGroups[g1].members.filter(m => m.id !== swapCandidate1.id);
+                         tempGroups[g2].members = tempGroups[g2].members.filter(m => m.id !== student2.id);
+                         tempGroups[g1].members.push(student2);
+                         tempGroups[g2].members.push(swapCandidate1);
+                         break; 
+                      }
                     }
                   }
                 }
+
+                // 評估本輪衝突數
+                const evaluatedGroups = applyGroupStats(tempGroups, activeConstraints);
+                const currentIssuesCount = evaluatedGroups.reduce((acc, g) => acc + (g.stats.issues?.length || 0), 0);
+
+                if (currentIssuesCount < minIssuesCount) {
+                  minIssuesCount = currentIssuesCount;
+                  bestGroups = evaluatedGroups;
+                }
+
+                // 只要找到 0 衝突的完美組合，立即結束重跑
+                if (currentIssuesCount === 0) {
+                  break;
+                }
               }
 
-              setGroups(applyGroupStats(tempGroups, activeConstraints));
+              setGroups(bestGroups || applyGroupStats(tempGroups, activeConstraints));
               setIsCalculating(false);
               if (viewMode === 'teacher') setActiveTab('result');
             }, 800); 
