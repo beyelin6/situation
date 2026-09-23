@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>智慧班級分組系統</title>
+    <title>智慧班級分組系統 V2.2</title>
     
     <!-- 載入 Tailwind CSS -->
     <script src="https://cdn.tailwindcss.com"></script>
@@ -27,6 +27,7 @@
 
     <script type="text/babel">
         const { useState, useEffect, useRef } = React;
+        const APP_VERSION = '2.2';
 
         const iconPaths = {
             Users: '<path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M22 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/>',
@@ -74,6 +75,7 @@
           const [viewMode, setViewMode] = useState('teacher'); 
           const [activeTab, setActiveTab] = useState('input');
           const [students, setStudents] = useState([]);
+          const [isHydrated, setIsHydrated] = useState(false);
           const [groupCapacities, setGroupCapacities] = useState([5, 5, 4, 4, 4]); 
           const [constraints, setConstraints] = useState([]); 
           const [algorithm, setAlgorithm] = useState('stratified'); 
@@ -105,14 +107,26 @@
               }
             } catch (e) {
               console.error("讀取存檔失敗", e);
+            } finally {
+              setIsHydrated(true);
             }
           }, []);
 
           // 💾 資料變動時：寫入 LocalStorage
           useEffect(() => {
+             if (!isHydrated) return;
              const dataToSave = { students, groupCapacities, constraints };
-             localStorage.setItem('ClassSeatingData', JSON.stringify(dataToSave));
-          }, [students, groupCapacities, constraints]);
+             try {
+               localStorage.setItem('ClassSeatingData', JSON.stringify(dataToSave));
+             } catch (e) {
+               console.warn('本機儲存空間不可用或已滿', e);
+             }
+          }, [students, groupCapacities, constraints, isHydrated]);
+
+          useEffect(() => () => {
+            if (toastTimerRef.current) clearTimeout(toastTimerRef.current);
+            if (calculationTimerRef.current) clearTimeout(calculationTimerRef.current);
+          }, []);
 
           const showToast = (msg) => {
              setToastMessage(msg);
@@ -126,7 +140,7 @@
                  showToast('目前沒有資料可以匯出喔！');
                  return;
              }
-             const dataToSave = { students, groupCapacities, constraints };
+             const dataToSave = { version: APP_VERSION, students, groupCapacities, constraints };
              const blob = new Blob([JSON.stringify(dataToSave, null, 2)], { type: "application/json" });
              const url = URL.createObjectURL(blob);
              const a = document.createElement('a');
@@ -144,10 +158,20 @@
              const reader = new FileReader();
              reader.onload = (e) => {
                 try {
-                   const parsed = JSON.parse(e.target.result);
-                   if (parsed.students) setStudents(parsed.students);
-                   if (parsed.groupCapacities) setGroupCapacities(parsed.groupCapacities);
-                   if (parsed.constraints) setConstraints(parsed.constraints);
+                const parsed = JSON.parse(e.target.result);
+                   if (!parsed || !Array.isArray(parsed.students) || !Array.isArray(parsed.groupCapacities) || !Array.isArray(parsed.constraints)) {
+                     throw new Error('存檔缺少必要資料');
+                   }
+                   const seats = parsed.students.map(s => String(s.seatNumber ?? '').trim());
+                   if (seats.some(seat => !seat) || new Set(seats).size !== seats.length || parsed.students.some(s => !String(s.name ?? '').trim() || !Number.isFinite(Number(s.score)) || Number(s.score) <= 0)) {
+                     throw new Error('名單內容不完整或座號重複');
+                   }
+                   if (parsed.groupCapacities.some(cap => !Number.isInteger(Number(cap)) || Number(cap) < 1)) {
+                     throw new Error('組別座位數設定無效');
+                   }
+                   setStudents(parsed.students);
+                   setGroupCapacities(parsed.groupCapacities.map(Number));
+                   setConstraints(parsed.constraints);
                    setGroups([]); 
                    showToast('📂 存檔讀取成功！');
                 } catch (error) {
@@ -196,23 +220,21 @@
           };
 
           const parseAttendanceNames = (text) => {
-            const tokens = text.replace(/[,，]/g, ' ').split(/\s+/).map(v => v.trim()).filter(Boolean);
+            const tokens = text.replace(/[,，、;；\t\r\n]+/g, ' ').split(/\s+/).map(v => v.trim()).filter(Boolean);
             const result = new Set();
-            for (let i = 0; i < tokens.length; i++) {
-              if (/^\d+$/.test(tokens[i]) && tokens[i + 1]) result.add(tokens[i]);
-              else result.add(tokens[i]);
-            }
+            tokens.forEach(token => result.add(/^\d+$/.test(token) ? String(Number(token)) : token));
             return result;
           };
 
           const getRosterForRun = () => {
             if (viewMode !== 'student' || !fakeInputList.trim()) return students;
             const tokens = parseAttendanceNames(fakeInputList);
-            const active = students.filter(s => tokens.has(String(s.seatNumber)) || tokens.has(String(s.name)));
+            const active = students.filter(s => tokens.has(String(Number(s.seatNumber))) || tokens.has(String(s.name).trim()));
             if (!active.length) {
-              showToast('找不到相符的座號或姓名，將使用完整名單');
-              return students;
+              showToast('沒有找到相符的座號或姓名，請檢查出席名單');
+              return [];
             }
+            if (active.length < tokens.size) showToast(`已比對到 ${active.length} 位學生，未辨識的項目已略過`);
             return active;
           };
 
@@ -319,6 +341,10 @@
              if (students.length === 0) return;
              const total = students.length;
              const groups = groupCapacities.length;
+             if (total < groups) {
+               showToast('學生人數少於組數，無法讓每組至少有一個座位');
+               return;
+             }
              const base = Math.floor(total / groups);
              let remainder = total % groups;
              
@@ -329,22 +355,28 @@
           };
 
           const addConstraint = () => {
-            const s1 = constraintInput.s1; 
+            const s1 = String(constraintInput.s1 || '');
             if (constraintInput.type === 'assign') {
                const tg = Number(constraintInput.targetGroup);
-               if (!s1 || !tg) return;
-               const filteredC = constraints.filter(c => !(c.type === 'assign' && c.s1 === s1));
+               if (!s1 || !Number.isInteger(tg) || tg < 1 || tg > groupCapacities.length) {
+                 showToast('請選擇有效的學生與組別');
+                 return;
+               }
+               const filteredC = constraints.filter(c => !(c.type === 'assign' && String(c.s1) === s1));
                setConstraints([...filteredC, { s1, targetGroup: tg, type: 'assign' }]);
                setConstraintInput({ ...constraintInput, s1: '' });
                showToast('已鎖定座位');
                return;
             }
 
-            const s2 = constraintInput.s2;
-            if (!s1 || !s2 || s1 === s2) return;
-            const exists = constraints.some(c => c.type !== 'assign' && ((c.s1 === s1 && c.s2 === s2) || (c.s1 === s2 && c.s2 === s1)));
+            const s2 = String(constraintInput.s2 || '');
+            if (!s1 || !s2 || s1 === s2) {
+              showToast('請選擇兩位不同的學生');
+              return;
+            }
+            const exists = constraints.some(c => c.type !== 'assign' && ((String(c.s1) === s1 && String(c.s2) === s2) || (String(c.s1) === s2 && String(c.s2) === s1)));
             if (exists) {
-              showToast("這兩位學生已經有互動規則了！");
+              showToast('這兩位學生已有規則，請先移除舊規則再更改');
               return;
             }
             setConstraints([...constraints, { s1, s2, type: constraintInput.type }]);
@@ -424,10 +456,23 @@
                  const srcStudentIdx = srcGroup.members.findIndex(m => m.id === swapSource.studentId);
                  const srcStudent = srcGroup.members[srcStudentIdx];
 
+                 const sourceLock = constraints.find(c => c.type === 'assign' && String(c.s1) === String(srcStudent.id));
+                 if (sourceLock && Number(sourceLock.targetGroup) !== Number(groupId)) {
+                   showToast(`${srcStudent.name} 已指定在第 ${sourceLock.targetGroup} 組，不能移出`);
+                   setSwapSource(null);
+                   return;
+                 }
+
                  if (studentId) {
                      // 與另一位學生交換
                      const destStudentIdx = destGroup.members.findIndex(m => m.id === studentId);
                      const destStudent = destGroup.members[destStudentIdx];
+                     const destinationLock = constraints.find(c => c.type === 'assign' && String(c.s1) === String(destStudent?.id));
+                     if (destinationLock && Number(destinationLock.targetGroup) !== Number(swapSource.groupId)) {
+                       showToast(`${destStudent.name} 已指定在第 ${destinationLock.targetGroup} 組，不能移出`);
+                       setSwapSource(null);
+                       return;
+                     }
                      srcGroup.members.splice(srcStudentIdx, 1, destStudent);
                      destGroup.members.splice(destStudentIdx, 1, srcStudent);
                  } else {
@@ -475,6 +520,17 @@
                if (c.type === 'assign') return activeIds.has(String(c.s1));
                return activeIds.has(String(c.s1)) && activeIds.has(String(c.s2));
             });
+
+            const assignedGroup = new Map(activeConstraints.filter(c => c.type === 'assign').map(c => [String(c.s1), Number(c.targetGroup)]));
+            const impossibleRule = activeConstraints.find(c => {
+              if (c.type === 'ban') return assignedGroup.has(String(c.s1)) && assignedGroup.has(String(c.s2)) && assignedGroup.get(String(c.s1)) === assignedGroup.get(String(c.s2));
+              if (c.type === 'pair') return assignedGroup.has(String(c.s1)) && assignedGroup.has(String(c.s2)) && assignedGroup.get(String(c.s1)) !== assignedGroup.get(String(c.s2));
+              return c.type === 'assign' && (!Number.isInteger(Number(c.targetGroup)) || Number(c.targetGroup) < 1 || Number(c.targetGroup) > groupCapacities.length);
+            });
+            if (impossibleRule) {
+              showToast('指定組別與同組／分組規則互相矛盾，請先調整規則');
+              return;
+            }
 
             const assignmentCounts = {};
             activeConstraints.filter(c => c.type === 'assign').forEach(c => {
@@ -678,7 +734,7 @@
                   <h1 className="text-3xl font-extrabold text-slate-800 tracking-tight">
                     {viewMode === 'teacher' ? '智慧分組後台' : '隨機分組小幫手'}
                   </h1>
-                  {viewMode === 'teacher' && <p className="text-slate-500 mt-1 text-sm font-medium">雙擊左側魔杖圖示可無痕切換展示模式</p>}
+                  {viewMode === 'teacher' && <p className="text-slate-500 mt-1 text-sm font-medium">V{APP_VERSION}・雙擊左側魔杖圖示可無痕切換展示模式</p>}
                 </div>
               </div>
               
