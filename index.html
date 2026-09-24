@@ -514,6 +514,35 @@
               return;
             }
 
+            // 依排名由前到後切成高、中、低三個分層，後續比較每組分布是否接近全班。
+            const rankedRoster = [...roster].sort((a, b) => a.score - b.score || String(a.seatNumber).localeCompare(String(b.seatNumber), 'zh-Hant', { numeric: true }));
+            const rankBandById = new Map(rankedRoster.map((student, index) => [
+              String(student.id), Math.min(2, Math.floor(index * 3 / rankedRoster.length))
+            ]));
+            const rankBandTotals = [0, 0, 0];
+            rankedRoster.forEach(student => rankBandTotals[rankBandById.get(String(student.id))]++);
+            const classAverageScore = roster.reduce((sum, student) => sum + Number(student.score), 0) / roster.length;
+            const scoreRange = Math.max(1, ...roster.map(student => Number(student.score))) - Math.min(...roster.map(student => Number(student.score))) || 1;
+
+            const measureGroupBalance = evaluatedGroups => {
+              let genderPenalty = 0;
+              let rankBandPenalty = 0;
+              let averageScorePenalty = 0;
+              evaluatedGroups.forEach(group => {
+                const count = group.members.length;
+                if (!count) return;
+                genderPenalty += Math.abs(group.stats.mCount - group.stats.fCount);
+                for (let band = 0; band < 3; band++) {
+                  const actual = group.members.filter(student => rankBandById.get(String(student.id)) === band).length;
+                  const expected = count * rankBandTotals[band] / roster.length;
+                  rankBandPenalty += ((actual - expected) / count) ** 2;
+                }
+                const average = group.members.reduce((sum, student) => sum + Number(student.score), 0) / count;
+                averageScorePenalty += ((average - classAverageScore) / scoreRange) ** 2;
+              });
+              return { genderPenalty, rankBandPenalty, averageScorePenalty };
+            };
+
             // 🛡️ 缺席防呆：過濾掉有牽涉到缺席者的規則
             const activeIds = new Set(roster.map(s => String(s.id)));
             const activeConstraints = constraints.filter(c => {
@@ -548,7 +577,10 @@
             calculationTimerRef.current = setTimeout(() => {
               let bestGroups = null;
               let minIssuesCount = Infinity;
-              const maxAttempts = 20; // 核心升級：若陷入死胡同，背景自動重抽重跑最多 20 輪
+              let bestGenderPenalty = Infinity;
+              let bestRankBandPenalty = Infinity;
+              let bestAverageScorePenalty = Infinity;
+              const maxAttempts = 40; // 多次試排後，選擇規則衝突最少且成績分布更平均的結果。
 
               for (let attempt = 0; attempt < maxAttempts; attempt++) {
                 // 1. 初始化空組別
@@ -713,15 +745,18 @@
                 // 評估本輪衝突數
                 const evaluatedGroups = applyGroupStats(tempGroups, activeConstraints);
                 const currentIssuesCount = evaluatedGroups.reduce((acc, g) => acc + (g.stats.issues?.length || 0), 0);
+                const balance = measureGroupBalance(evaluatedGroups);
+                const isBetter = currentIssuesCount < minIssuesCount ||
+                  (currentIssuesCount === minIssuesCount && balance.genderPenalty < bestGenderPenalty) ||
+                  (currentIssuesCount === minIssuesCount && balance.genderPenalty === bestGenderPenalty && balance.rankBandPenalty < bestRankBandPenalty) ||
+                  (currentIssuesCount === minIssuesCount && balance.genderPenalty === bestGenderPenalty && balance.rankBandPenalty === bestRankBandPenalty && balance.averageScorePenalty < bestAverageScorePenalty);
 
-                if (currentIssuesCount < minIssuesCount) {
+                if (isBetter) {
                   minIssuesCount = currentIssuesCount;
+                  bestGenderPenalty = balance.genderPenalty;
+                  bestRankBandPenalty = balance.rankBandPenalty;
+                  bestAverageScorePenalty = balance.averageScorePenalty;
                   bestGroups = evaluatedGroups;
-                }
-
-                // 只要找到 0 衝突的完美組合，立即結束重跑
-                if (currentIssuesCount === 0) {
-                  break;
                 }
               }
 
@@ -1024,7 +1059,7 @@
                                     <Icon name="Shuffle" className={`w-5 h-5 mt-0.5 ${algorithm==='stratified'?'text-emerald-600':'text-slate-400'}`}/>
                                     <div>
                                        <div className={`font-bold text-sm ${algorithm==='stratified'?'text-emerald-900':'text-slate-700'}`}>多維度分層隨機 (推薦)</div>
-                                    <p className="text-xs text-slate-500 mt-1">優先平衡各組男女比例（4 人 2/2；5 人 3/2 或 2/3），並兼顧排名分散。</p>
+                                       <p className="text-xs text-slate-500 mt-1">先平衡各組男女比例，再把高、中、低排名學生分散到各組，讓組別平均成績接近全班。</p>
                                     </div>
                                  </button>
                                  <button onClick={()=>setAlgorithm('snake')} className={`p-3 rounded-xl border text-left flex items-start gap-3 transition-all ${algorithm==='snake'?'bg-indigo-50 border-indigo-300 ring-2 ring-indigo-100':'bg-white hover:bg-slate-50'}`}>
