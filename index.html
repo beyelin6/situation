@@ -575,7 +575,7 @@
                 let boys = roster.filter(s => s.gender === 'M' && !assignedIds.has(s.id)).sort((a, b) => a.score - b.score);
                 let girls = roster.filter(s => s.gender === 'F' && !assignedIds.has(s.id)).sort((a, b) => a.score - b.score);
 
-                // 核心發牌函式：具備性別防護機制
+                // 分組優先讓每組男女數接近（4 人 2/2；5 人 3/2 或 2/3），再平衡人數與排名。
                 const distribute = (list, genderStr) => {
                    list.forEach(student => {
                       tempGroups.sort((a, b) => {
@@ -594,6 +594,16 @@
                          
                          if (overLimitA && !overLimitB) return 1;
                          if (!overLimitA && overLimitB) return -1;
+
+                         // 以放入這位學生後的男女差距作為主要平衡指標。
+                         // 偶數組別會優先走向 1/1、2/2；奇數組別允許 3/2 或 2/3。
+                         const boysA = a.members.filter(m => m.gender === 'M').length + (genderStr === 'M' ? 1 : 0);
+                         const girlsA = a.members.filter(m => m.gender === 'F').length + (genderStr === 'F' ? 1 : 0);
+                         const boysB = b.members.filter(m => m.gender === 'M').length + (genderStr === 'M' ? 1 : 0);
+                         const girlsB = b.members.filter(m => m.gender === 'F').length + (genderStr === 'F' ? 1 : 0);
+                         const balanceA = Math.abs(boysA - girlsA);
+                         const balanceB = Math.abs(boysB - girlsB);
+                         if (balanceA !== balanceB) return balanceA - balanceB;
 
                          const vacancyA = a.capacity - a.members.length;
                          const vacancyB = b.capacity - b.members.length;
@@ -1014,7 +1024,7 @@
                                     <Icon name="Shuffle" className={`w-5 h-5 mt-0.5 ${algorithm==='stratified'?'text-emerald-600':'text-slate-400'}`}/>
                                     <div>
                                        <div className={`font-bold text-sm ${algorithm==='stratified'?'text-emerald-900':'text-slate-700'}`}>多維度分層隨機 (推薦)</div>
-                                       <p className="text-xs text-slate-500 mt-1">完美適應不對等座位，確保性別與高低分群打散。</p>
+                                    <p className="text-xs text-slate-500 mt-1">優先平衡各組男女比例（4 人 2/2；5 人 3/2 或 2/3），並兼顧排名分散。</p>
                                     </div>
                                  </button>
                                  <button onClick={()=>setAlgorithm('snake')} className={`p-3 rounded-xl border text-left flex items-start gap-3 transition-all ${algorithm==='snake'?'bg-indigo-50 border-indigo-300 ring-2 ring-indigo-100':'bg-white hover:bg-slate-50'}`}>
