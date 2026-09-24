@@ -486,17 +486,19 @@
                      destGroup.members.push(srcStudent);
                  }
 
-                 // 手動移動也維持偶數組男女各半、奇數組男女差一人。
-                 const affectedGroups = [...new Set([srcGroup, destGroup])];
-                 const genderImbalance = affectedGroups.find(group => {
-                   const boys = group.members.filter(member => member.gender === 'M').length;
-                   const girls = group.members.filter(member => member.gender === 'F').length;
-                   return Math.abs(boys - girls) !== group.members.length % 2;
-                 });
-                 if (genderImbalance) {
-                   showToast('這樣調整會破壞性別平均；偶數組需男女各半，奇數組男女差 1 人');
-                   setSwapSource(null);
-                   return;
+                 // 老師手動調整時維持性別比例；學生模式以快速互換為主，不限制座位調整。
+                 if (viewMode === 'teacher') {
+                   const affectedGroups = [...new Set([srcGroup, destGroup])];
+                   const genderImbalance = affectedGroups.find(group => {
+                     const boys = group.members.filter(member => member.gender === 'M').length;
+                     const girls = group.members.filter(member => member.gender === 'F').length;
+                     return Math.abs(boys - girls) !== group.members.length % 2;
+                   });
+                   if (genderImbalance) {
+                     showToast('這樣調整會破壞性別平均；偶數組需男女各半，奇數組男女差 1 人');
+                     setSwapSource(null);
+                     return;
+                   }
                  }
 
                  // 重新計算衝突並更新狀態
