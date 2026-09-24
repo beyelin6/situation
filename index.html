@@ -456,7 +456,7 @@
                  const srcStudentIdx = srcGroup.members.findIndex(m => m.id === swapSource.studentId);
                  const srcStudent = srcGroup.members[srcStudentIdx];
 
-                 const sourceLock = constraints.find(c => c.type === 'assign' && String(c.s1) === String(srcStudent.id));
+                 const sourceLock = viewMode === 'teacher' ? constraints.find(c => c.type === 'assign' && String(c.s1) === String(srcStudent.id)) : null;
                  if (sourceLock && Number(sourceLock.targetGroup) !== Number(groupId)) {
                    showToast(`${srcStudent.name} 已指定在第 ${sourceLock.targetGroup} 組，不能移出`);
                    setSwapSource(null);
@@ -467,7 +467,7 @@
                      // 與另一位學生交換
                      const destStudentIdx = destGroup.members.findIndex(m => m.id === studentId);
                      const destStudent = destGroup.members[destStudentIdx];
-                     const destinationLock = constraints.find(c => c.type === 'assign' && String(c.s1) === String(destStudent?.id));
+                     const destinationLock = viewMode === 'teacher' ? constraints.find(c => c.type === 'assign' && String(c.s1) === String(destStudent?.id)) : null;
                      if (destinationLock && Number(destinationLock.targetGroup) !== Number(swapSource.groupId)) {
                        showToast(`${destStudent.name} 已指定在第 ${destinationLock.targetGroup} 組，不能移出`);
                        setSwapSource(null);
@@ -502,10 +502,10 @@
                  // 重新計算衝突並更新狀態
                  const roster = getRosterForRun();
                  const activeIds = new Set(roster.map(s => String(s.id)));
-                 const activeConstraints = constraints.filter(c => {
+                 const activeConstraints = viewMode === 'teacher' ? constraints.filter(c => {
                     if (c.type === 'assign') return activeIds.has(String(c.s1));
                     return activeIds.has(String(c.s1)) && activeIds.has(String(c.s2));
-                 });
+                 }) : [];
 
                  setGroups(applyGroupStats(newGroups, activeConstraints));
                  setSwapSource(null);
@@ -558,10 +558,10 @@
 
             // 🛡️ 缺席防呆：過濾掉有牽涉到缺席者的規則
             const activeIds = new Set(roster.map(s => String(s.id)));
-            const activeConstraints = constraints.filter(c => {
+            const activeConstraints = viewMode === 'teacher' ? constraints.filter(c => {
                if (c.type === 'assign') return activeIds.has(String(c.s1));
                return activeIds.has(String(c.s1)) && activeIds.has(String(c.s2));
-            });
+            }) : [];
 
             const assignedGroup = new Map(activeConstraints.filter(c => c.type === 'assign').map(c => [String(c.s1), Number(c.targetGroup)]));
             const impossibleRule = activeConstraints.find(c => {
