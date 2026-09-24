@@ -486,6 +486,19 @@
                      destGroup.members.push(srcStudent);
                  }
 
+                 // 手動移動也維持偶數組男女各半、奇數組男女差一人。
+                 const affectedGroups = [...new Set([srcGroup, destGroup])];
+                 const genderImbalance = affectedGroups.find(group => {
+                   const boys = group.members.filter(member => member.gender === 'M').length;
+                   const girls = group.members.filter(member => member.gender === 'F').length;
+                   return Math.abs(boys - girls) !== group.members.length % 2;
+                 });
+                 if (genderImbalance) {
+                   showToast('這樣調整會破壞性別平均；偶數組需男女各半，奇數組男女差 1 人');
+                   setSwapSource(null);
+                   return;
+                 }
+
                  // 重新計算衝突並更新狀態
                  const roster = getRosterForRun();
                  const activeIds = new Set(roster.map(s => String(s.id)));
@@ -503,7 +516,7 @@
           const getStudentName = (id) => students.find(s => String(s.id) === String(id))?.name || '未知';
 
           const generateGroups = () => {
-            const roster = getRosterForRun();
+            const roster = getRosterForRun().map(student => ({ ...student, gender: student.gender === 'F' ? 'F' : 'M' }));
             const totalSeats = groupCapacities.reduce((a,b)=>a+b, 0);
             if (roster.length === 0) {
               showToast("請先輸入學生資料！");
@@ -571,6 +584,70 @@
               return;
             }
 
+            // 先依目前出席人數分配實際組員數；若座位有餘，組員數盡量平均。
+            const targetGroupSizes = Array(groupCapacities.length).fill(0);
+            for (let seat = 0; seat < roster.length; seat++) {
+              const available = targetGroupSizes
+                .map((count, index) => ({ count, index }))
+                .filter(item => item.count < groupCapacities[item.index])
+                .sort((a, b) => a.count - b.count);
+              if (!available.length) break;
+              const leastFilled = available[0].count;
+              const tiedGroups = available.filter(item => item.count === leastFilled);
+              const picked = tiedGroups[Math.floor(Math.random() * tiedGroups.length)];
+              targetGroupSizes[picked.index]++;
+            }
+
+            const assignedGenderCounts = groupCapacities.map(() => ({ M: 0, F: 0, total: 0 }));
+            const countedAssignedIds = new Set();
+            activeConstraints.filter(c => c.type === 'assign').forEach(c => {
+              const student = roster.find(s => String(s.id) === String(c.s1));
+              const groupIndex = Number(c.targetGroup) - 1;
+              if (student && !countedAssignedIds.has(String(student.id))) {
+                assignedGenderCounts[groupIndex][student.gender === 'F' ? 'F' : 'M']++;
+                assignedGenderCounts[groupIndex].total++;
+                countedAssignedIds.add(String(student.id));
+              }
+            });
+            const assignedBeyondPlan = assignedGenderCounts.findIndex((count, index) => count.total > targetGroupSizes[index]);
+            if (assignedBeyondPlan >= 0) {
+              showToast(`第 ${assignedBeyondPlan + 1} 組的指定人數超過本次預計組員數，請調整指定組別`);
+              return;
+            }
+
+            // 偶數組鎖定男女各半；奇數組多出的一位，按全班男女總數決定分配方向。
+            const baseMaleTargets = targetGroupSizes.map(size => Math.floor(size / 2));
+            const oddGroupIndices = targetGroupSizes.map((size, index) => size % 2 ? index : -1).filter(index => index >= 0);
+            const totalMaleStudents = roster.filter(student => student.gender === 'M').length;
+            const totalMaleExtras = totalMaleStudents - baseMaleTargets.reduce((sum, count) => sum + count, 0);
+            const mustHaveMaleExtra = [];
+            const mayHaveMaleExtra = [];
+            let invalidQuota = totalMaleExtras < 0 || totalMaleExtras > oddGroupIndices.length;
+
+            for (let index = 0; index < targetGroupSizes.length; index++) {
+              const size = targetGroupSizes[index];
+              const baseM = baseMaleTargets[index];
+              const fixedM = assignedGenderCounts[index].M;
+              const fixedF = assignedGenderCounts[index].F;
+              if (size % 2 === 0) {
+                if (fixedM > baseM || fixedF > size - baseM) invalidQuota = true;
+                continue;
+              }
+              const baseWorks = fixedM <= baseM && fixedF <= size - baseM;
+              const extraWorks = fixedM <= baseM + 1 && fixedF <= size - baseM - 1;
+              if (!baseWorks && !extraWorks) invalidQuota = true;
+              else if (!baseWorks) mustHaveMaleExtra.push(index);
+              else if (extraWorks) mayHaveMaleExtra.push(index);
+            }
+
+            const optionalMaleExtras = totalMaleExtras - mustHaveMaleExtra.length;
+            if (optionalMaleExtras < 0 || optionalMaleExtras > mayHaveMaleExtra.length) invalidQuota = true;
+            if (invalidQuota) {
+              const totalFemaleStudents = roster.length - totalMaleStudents;
+              showToast(`目前男生 ${totalMaleStudents} 人、女生 ${totalFemaleStudents} 人，或指定組別限制，無法讓偶數組男女各半；請調整分組人數或指定規則`);
+              return;
+            }
+
             setIsCalculating(true);
             setSwapSource(null);
             
@@ -583,6 +660,10 @@
               const maxAttempts = 40; // 多次試排後，選擇規則衝突最少且成績分布更平均的結果。
 
               for (let attempt = 0; attempt < maxAttempts; attempt++) {
+                const targetMaleCounts = [...baseMaleTargets];
+                mustHaveMaleExtra.forEach(index => targetMaleCounts[index]++);
+                shuffleArray([...mayHaveMaleExtra]).slice(0, optionalMaleExtras).forEach(index => targetMaleCounts[index]++);
+
                 // 1. 初始化空組別
                 let tempGroups = groupCapacities.map((cap, i) => ({
                   id: i + 1,
@@ -607,25 +688,16 @@
                 let boys = roster.filter(s => s.gender === 'M' && !assignedIds.has(s.id)).sort((a, b) => a.score - b.score);
                 let girls = roster.filter(s => s.gender === 'F' && !assignedIds.has(s.id)).sort((a, b) => a.score - b.score);
 
-                // 分組優先讓每組男女數接近（4 人 2/2；5 人 3/2 或 2/3），再平衡人數與排名。
+                // 嚴格依性別名額分組，偶數組各半、奇數組差一人。
                 const distribute = (list, genderStr) => {
                    list.forEach(student => {
                       tempGroups.sort((a, b) => {
-                         const isFullA = a.members.length >= a.capacity;
-                         const isFullB = b.members.length >= b.capacity;
-                         if (isFullA && !isFullB) return 1;
-                         if (!isFullA && isFullB) return -1;
-
-                         const limitA = Math.ceil(a.capacity / 2);
-                         const limitB = Math.ceil(b.capacity / 2);
-                         const genderCountA = a.members.filter(m => m.gender === genderStr).length;
-                         const genderCountB = b.members.filter(m => m.gender === genderStr).length;
-                         
-                         const overLimitA = genderCountA >= limitA;
-                         const overLimitB = genderCountB >= limitB;
-                         
-                         if (overLimitA && !overLimitB) return 1;
-                         if (!overLimitA && overLimitB) return -1;
+                         const genderTargetA = genderStr === 'M' ? targetMaleCounts[a.id - 1] : targetGroupSizes[a.id - 1] - targetMaleCounts[a.id - 1];
+                         const genderTargetB = genderStr === 'M' ? targetMaleCounts[b.id - 1] : targetGroupSizes[b.id - 1] - targetMaleCounts[b.id - 1];
+                         const hasRoomA = a.members.length < targetGroupSizes[a.id - 1] && a.members.filter(m => m.gender === genderStr).length < genderTargetA;
+                         const hasRoomB = b.members.length < targetGroupSizes[b.id - 1] && b.members.filter(m => m.gender === genderStr).length < genderTargetB;
+                         if (hasRoomA !== hasRoomB) return hasRoomA ? -1 : 1;
+                         if (!hasRoomA && !hasRoomB) return 0;
 
                          // 以放入這位學生後的男女差距作為主要平衡指標。
                          // 偶數組別會優先走向 1/1、2/2；奇數組別允許 3/2 或 2/3。
@@ -637,8 +709,8 @@
                          const balanceB = Math.abs(boysB - girlsB);
                          if (balanceA !== balanceB) return balanceA - balanceB;
 
-                         const vacancyA = a.capacity - a.members.length;
-                         const vacancyB = b.capacity - b.members.length;
+                         const vacancyA = targetGroupSizes[a.id - 1] - a.members.length;
+                         const vacancyB = targetGroupSizes[b.id - 1] - b.members.length;
                          if (vacancyA !== vacancyB) return vacancyB - vacancyA; 
 
                          const sumA = a.members.reduce((acc, m) => acc + m.score, 0);
@@ -646,7 +718,10 @@
                          return sumB - sumA;
                       });
                       
-                      if (tempGroups[0].members.length < tempGroups[0].capacity) {
+                      const targetSize = targetGroupSizes[tempGroups[0].id - 1];
+                      const targetGenderCount = tempGroups[0].members.filter(m => m.gender === genderStr).length;
+                      const targetGenderLimit = genderStr === 'M' ? targetMaleCounts[tempGroups[0].id - 1] : targetSize - targetMaleCounts[tempGroups[0].id - 1];
+                      if (tempGroups[0].members.length < targetSize && targetGenderCount < targetGenderLimit) {
                           tempGroups[0].members.push(student);
                       }
                    });
@@ -1059,7 +1134,7 @@
                                     <Icon name="Shuffle" className={`w-5 h-5 mt-0.5 ${algorithm==='stratified'?'text-emerald-600':'text-slate-400'}`}/>
                                     <div>
                                        <div className={`font-bold text-sm ${algorithm==='stratified'?'text-emerald-900':'text-slate-700'}`}>多維度分層隨機 (推薦)</div>
-                                       <p className="text-xs text-slate-500 mt-1">先平衡各組男女比例，再把高、中、低排名學生分散到各組，讓組別平均成績接近全班。</p>
+                                       <p className="text-xs text-slate-500 mt-1">偶數人組固定男女各半；奇數人組平均分配多出的一位，再打散高、中、低排名。</p>
                                     </div>
                                  </button>
                                  <button onClick={()=>setAlgorithm('snake')} className={`p-3 rounded-xl border text-left flex items-start gap-3 transition-all ${algorithm==='snake'?'bg-indigo-50 border-indigo-300 ring-2 ring-indigo-100':'bg-white hover:bg-slate-50'}`}>
